@@ -13,6 +13,7 @@ x86/
 [Aa][Rr][Mm]/
 [Bb]in/
 [Oo]bj/
+.DS_Store
 
 # Rider
 .idea/
