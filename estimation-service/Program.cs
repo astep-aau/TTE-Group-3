@@ -8,6 +8,7 @@ namespace EstimationService
         {
             Console.WriteLine("Estimation Service is running...");
             System.Console.WriteLine("GEDERNE, tak agent :*");
+            System.Console.WriteLine("Test");
         }
     }
 }
