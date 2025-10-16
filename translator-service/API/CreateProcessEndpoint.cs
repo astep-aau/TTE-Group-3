@@ -23,6 +23,7 @@ public class CreateProcessEndpoint : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateProcessAsync([FromBody] CreateProcessRequest req, CancellationToken ct)
     {
+        // TODO: Create logging scope and error handling like in GetRouteEndpoint
         var stopwatch = Stopwatch.StartNew();
 
         _handler.HandleAsync(req, ct);
@@ -34,5 +35,3 @@ public class CreateProcessEndpoint : ControllerBase
 
 }
 
-//Kodeord: mysecretpassword
-// port: 5432
