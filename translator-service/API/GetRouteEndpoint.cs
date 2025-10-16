@@ -18,7 +18,7 @@ public class GetRouteEndpoint : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet]
+    [HttpPost]
     public async Task<IActionResult> GetRouteAsync([FromBody] RouteResultRequest req, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
