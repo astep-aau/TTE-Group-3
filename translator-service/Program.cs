@@ -4,6 +4,7 @@ using Serilog;
 using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
 using translator_service;
+using translator_service.API;
 
 var builder = WebApplication.CreateBuilder(args);
 
