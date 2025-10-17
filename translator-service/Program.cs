@@ -5,6 +5,7 @@ using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
 using translator_service;
 using translator_service.API;
+using translator_service.Features.CreateProcess;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +49,11 @@ builder.Services.AddSwaggerGen(options =>
 // Register your handler and repository
 builder.Services.AddScoped<GetRouteHandler>();
 builder.Services.AddScoped<IRouteRepository, RouteRepository>(); 
+
+// CreateProcess registrations (required for endpoint to resolve handler/repo)
+builder.Services.AddScoped<CreateProcessHandler>();
+builder.Services.AddScoped<ICreateProcessRepository, CreateProcessRepository>();
+
 
 var app = builder.Build();
 

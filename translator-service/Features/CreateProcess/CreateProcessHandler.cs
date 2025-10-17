@@ -15,25 +15,35 @@ public class CreateProcessHandler
         _logger = logger;
     }
     
-    public async Task HandleAsync(CreateProcessRequest request, CancellationToken ct)
+    public async Task HandleAsync(CreateProcessCommand command, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
         
         using (_logger.BeginScope(new Dictionary<string, object>
         {
-            ["CorrelationId"] = request.CorrelationId,
-            ["Origin"] = request.Origin,
-            ["Destination"] = request.Destination,
-            ["CreatedAt"] = request.CreatedAt
+            ["CorrelationId"] = command.CorrelationId,
+            ["Origin"] = command.Origin,
+            ["Destination"] = command.Destination,
+            ["CreatedAt"] = command.CreatedAt
         }))
         {
             try
             {
                 _logger.LogInformation("Starting process creation");
 
+                var entity = new CreateProcessRequest
+                {
+                    Id = command.Id,
+                    CorrelationId = command.CorrelationId,
+                    Origin = command.Origin,
+                    Destination = command.Destination,
+                    CreatedAt = command.CreatedAt,
+                    routeCreated = command.routeCreated,
+                    timeEstimated = command.timeEstimated
+                };
+                
                 // Alt andet er logging. This linje er den vigtige
-                await _repository.CreateProcessAsync(request);
-
+                await _repository.CreateProcessAsync(entity);
                 stopwatch.Stop();
 
                 _logger.LogInformation("Process created successfully. Duration: {Duration}ms", 
