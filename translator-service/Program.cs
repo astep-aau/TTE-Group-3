@@ -4,6 +4,8 @@ using Serilog;
 using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
 using translator_service;
+using translator_service.API;
+using translator_service.Features.CreateProcess;
 using translator_service.Features.GetTravelTime;
 using translator_service.Infrastructure;
 
@@ -52,6 +54,11 @@ builder.Services.AddScoped<IRouteRepository, RouteRepository>();
 builder.Services.AddScoped<GetTravelTimeHandler>();
 builder.Services.AddScoped<ITravelTimeRepository, TravelTimeRepository>();
 
+// CreateProcess registrations (required for endpoint to resolve handler/repo)
+builder.Services.AddScoped<CreateProcessHandler>();
+builder.Services.AddScoped<ICreateProcessRepository, CreateProcessRepository>();
+
+
 var app = builder.Build();
 
 // Ensure database is created and migrations are applied
@@ -97,3 +104,4 @@ finally
 {
     Log.CloseAndFlush();
 }
+
