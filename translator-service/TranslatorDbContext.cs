@@ -11,6 +11,9 @@ public class TranslatorDbContext : DbContext
     public DbSet<RouteResult> Routes { get; set; } = default!;
     public DbSet<RouteCoordinate> RouteCoordinates { get; set; } = default!;
     public DbSet<CreateProcessRequest> CreateProcessRequests { get; set; } = default!;
+    public DbSet<TravelTimeRequest> TravelTimeRequests { get; set; } = default!;
+    public DbSet<TravelTimeResult> TravelTimeResults { get; set; } = default!;
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,6 +29,20 @@ public class TranslatorDbContext : DbContext
         modelBuilder.Entity<RouteCoordinate>(entity =>
         {
             entity.HasKey(c => c.Id);
+        });
+
+        modelBuilder.Entity<TravelTimeRequest>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.CorrelationId).IsRequired();
+            entity.Property(t => t.CreatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<TravelTimeResult>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.CorrelationId).IsRequired();
+            entity.Property(t => t.CreatedAt).IsRequired();
         });
     }
 }
