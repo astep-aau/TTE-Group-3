@@ -4,6 +4,8 @@ using Serilog;
 using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
 using translator_service;
+using translator_service.Features.GetTravelTime;
+using translator_service.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,7 +48,9 @@ builder.Services.AddSwaggerGen(options =>
 
 // Register your handler and repository
 builder.Services.AddScoped<GetRouteHandler>();
-builder.Services.AddScoped<IRouteRepository, RouteRepository>(); 
+builder.Services.AddScoped<IRouteRepository, RouteRepository>();
+builder.Services.AddScoped<GetTravelTimeHandler>();
+builder.Services.AddScoped<ITravelTimeRepository, TravelTimeRepository>();
 
 var app = builder.Build();
 
