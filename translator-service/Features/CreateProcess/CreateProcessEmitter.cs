@@ -16,16 +16,10 @@ namespace translator_service.Features.CreateProcess
         {
             _bus = bus;
         }
-        /*
-        public async Task EmitCreateProcessEventAsync(Dictionary<string, object> processData, CancellationToken ct = default)
+        
+        public async Task EmitCreateProcessEventAsync(CreateProcessEvent processEvent, CancellationToken ct = default)
         {
-            // Placeholder for future event emission logic
-            //await Task.CompletedTask;
-            await _bus.Publish(new CreateProcessEvent
-            {
-                ProcessData = processData
-            }, ct);
+            await _bus.Publish(processEvent, ct);
         }
-        */
     }
 }

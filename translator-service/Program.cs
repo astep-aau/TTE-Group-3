@@ -8,6 +8,7 @@ using translator_service.API;
 using translator_service.Features.CreateProcess;
 using translator_service.Features.GetTravelTime;
 using translator_service.Infrastructure;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +49,17 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Add MassTransit for service bus communication
+builder.Services.AddMassTransit(x =>
+{
+    // For development, you can use the in-memory transport.
+    x.UsingInMemory((context, cfg) =>
+    {
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
+
 // Register your handler and repository
 builder.Services.AddScoped<GetRouteHandler>();
 builder.Services.AddScoped<IRouteRepository, RouteRepository>();
@@ -57,7 +69,7 @@ builder.Services.AddScoped<ITravelTimeRepository, TravelTimeRepository>();
 // CreateProcess registrations (required for endpoint to resolve handler/repo)
 builder.Services.AddScoped<CreateProcessHandler>();
 builder.Services.AddScoped<ICreateProcessRepository, CreateProcessRepository>();
-
+builder.Services.AddScoped<CreateProcessEmitter>();
 
 var app = builder.Build();
 

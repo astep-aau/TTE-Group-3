@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using translator_service.Domain.Entities;
 using translator_service.Features.GetRoute;
+using translator_service.Domain.Events;
 
 namespace translator_service.Features.CreateProcess;
 
@@ -8,11 +9,15 @@ public class CreateProcessHandler
 {
     private readonly ICreateProcessRepository _repository;
     private readonly ILogger<CreateProcessHandler> _logger;
+    private readonly CreateProcessEmitter _emitter;
 
-    public CreateProcessHandler(ICreateProcessRepository repository, ILogger<CreateProcessHandler> logger)
+    public CreateProcessHandler(ICreateProcessRepository repository, 
+        ILogger<CreateProcessHandler> logger,
+        CreateProcessEmitter emitter)
     {
         _repository = repository;
         _logger = logger;
+        _emitter = emitter;
     }
     
     public async Task HandleAsync(CreateProcessCommand command, CancellationToken ct)
@@ -45,6 +50,9 @@ public class CreateProcessHandler
                 // Alt andet er logging. This linje er den vigtige
                 await _repository.CreateProcessAsync(entity);
                 stopwatch.Stop();
+                
+                var processEvent = CreateProcessEvent.From(entity);
+                await _emitter.EmitCreateProcessEventAsync(processEvent, ct);
 
                 _logger.LogInformation("Process created successfully. Duration: {Duration}ms", 
                     stopwatch.ElapsedMilliseconds);
