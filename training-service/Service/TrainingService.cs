@@ -1,104 +1,76 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text.Json;
 using trainingService.Domain;
+using Helpers;
 
 namespace TrainingService.Services
 {
+    //Denne service 
     public class TrainingService
     {
-        // Main method to start training
-        public TrainingSet StartTraining(int numSequences = 10, int sequenceLength = 5)
+        //Laver en instans af python runneren.
+        private readonly runPythonScript _pythonRunner = new runPythonScript();
+        
+        //Første del af servicen, den står for at lave en rute/sekvens af veje.
+        public List<List<int>> CreateRoute()
         {
-            var trainingSet = new TrainingSet
-            {
-                Sequences = new List<Sequence>()
-            };
-
-            // 1️⃣ Call Python helper to generate sequences
-            string sequenceJson = RunPythonScript("Helpers/dataCreation.py", numSequences.ToString());
+            //Laver en liste af sekvenser, som køre fra python prossessen.
+            string sequenceJson = _pythonRunner.RunPythonScript("Helpers/dataCreation.py");
+            
+            //Laver vores Json om til en List af List af sekvenser (C# Object)
             var edgeSequences = JsonSerializer.Deserialize<List<List<int>>>(sequenceJson);
+            
+            //Retunere vores sekvenser, hvis empty retunere et empty Object.
+            return edgeSequences ?? new List<List<int>>();
+        }
 
-            if (edgeSequences == null)
-                return trainingSet;
+        // Anden del af servicen, den står for at tage alle vores edges og udregne en samlet tid for sekvensen
+        public double CreateTimeForRoute(List<int> edges)
+        {
+            //Tager argumenterne til processen, det her er de sekvenser vi lavede før.
+            string jsonArg = JsonSerializer.Serialize(edges);
+            //Køre vores process, der udregner tiden.
+            string output = _pythonRunner.RunPythonScript("Helpers/timeCreation.py", $"\"{jsonArg}\"");
 
-            // 2️⃣ For each sequence, call Python helper to calculate total time
+            //Hvis den er tom, skriver vi 0
+            if (string.IsNullOrWhiteSpace(output))
+                return 0.0;
+            
+            //Her summere vi alle tiderne sammen.
+            try {
+                var times = JsonSerializer.Deserialize<List<double>>(output);
+                return times?.Sum() ?? 0.0;
+            }
+            catch (JsonException ex) {
+                Console.WriteLine($"Failed to parse Python output: {ex.Message}");
+                return 0.0;
+            }
+        }
+        
+        //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
+        public TrainingSet CreateTrainingSet()
+        {
+            //Laver et nyt object af vores Model "TrainingSet"
+            var trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
+            
+            //Laver alle vores Ruter
+            var edgeSequences = CreateRoute();
+            
+            //For hver rute tjekker vi hvad den totale tid er.
             foreach (var edges in edgeSequences)
             {
-                double totalTime = GetTotalTimeFromPython(edges.ToArray());
-
-                // 3️⃣ Create Sequence object
+                double totalTime = CreateTimeForRoute(edges);
+                
+                //Laver en ny sekvens, med ruten og tiden.
                 var seq = new Sequence
                 {
                     Edges = edges,
                     TotalTime = (int)Math.Round(totalTime)
                 };
-
-                // 4️⃣ Add to training set
+                
+                //Tilføjer sekvensen til vores Trainingset.
                 trainingSet.Sequences.Add(seq);
             }
-
             return trainingSet;
-        }
-
-        // Run any Python script and return its standard output
-        private string RunPythonScript(string scriptPath, string args = "")
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "python3",
-                Arguments = string.IsNullOrWhiteSpace(args) ? scriptPath : $"{scriptPath} {args}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(psi))
-            {
-                string output = process.StandardOutput.ReadToEnd();
-                string errors = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                if (!string.IsNullOrEmpty(errors))
-                    Console.WriteLine("Python errors: " + errors);
-
-                return output.Trim();
-            }
-        }
-
-        // Call Python total-time helper for a sequence of edges
-        // Call Python total-time helper for a sequence of edges
-        // Call Python total-time helper for a sequence of edges
-        private double GetTotalTimeFromPython(int[] edgeSequence)
-        {
-            string jsonArg = JsonSerializer.Serialize(edgeSequence);
-            string output = RunPythonScript("Helpers/timeCreation.py", $"\"{jsonArg}\"");
-
-            if (string.IsNullOrWhiteSpace(output))
-                return 0.0;
-
-            try
-            {
-                // Parse JSON array returned by Python
-                var times = JsonSerializer.Deserialize<List<double>>(output);
-
-                if (times == null || times.Count == 0)
-                    return 0.0;
-
-                // Sum all edge times as float
-                double totalTimeFloat = 0.0;
-                foreach (var t in times)
-                    totalTimeFloat += t;
-
-                return totalTimeFloat;
-            }
-            catch (JsonException ex)
-            {
-                Console.WriteLine("Failed to parse Python output: " + ex.Message);
-                return 0.0;
-            }
         }
     }
 }

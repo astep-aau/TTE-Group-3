@@ -1,35 +1,22 @@
-using Microsoft.OpenApi.Models;
-using TrainingService.Services;
-
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
+// Add services to DI container
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer(); // Required for Swagger
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Version = "v1",
-        Title = "Training Service API",
-        Description = "API for managing and training LSTM models"
-    });
-});
 
-builder.Services.AddScoped<TrainingService.Services.TrainingService>();
+// ✅ Register your TrainingService
+builder.Services.AddSingleton<TrainingService.Services.TrainingService>();
+
+// Add Swagger if needed
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// ✅ Enable Swagger for all environments (not just Development)
+// Use Swagger if you want
 app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Training Service API v1");
-    c.RoutePrefix = string.Empty; // Optional: make Swagger available at http://localhost:5000/
-});
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
-app.UseAuthorization();
+// Map controllers
 app.MapControllers();
 
-app.Run(); 
+app.Run();
