@@ -5,8 +5,8 @@ import random
 # Configurable parameters
 # -----------------------------
 # Default number of sequences to generate
-NUM_SEQUENCES = 5
-SEQUENCE_LENGTH = 5
+NUM_SEQUENCES = 100
+SEQUENCE_LENGTH = random.randint(2, 20)
 
 # -----------------------------
 # Load the road network
