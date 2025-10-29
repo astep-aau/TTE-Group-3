@@ -2,7 +2,7 @@ namespace trainingService.Domain;
 
 public class Sequence
 {
-    public List<int> Edges { get; set; }
+    public List<double[]> Edges { get; set; }
     public double TotalTime { get; set; }
 }
 

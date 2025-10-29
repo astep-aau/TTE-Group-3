@@ -6,7 +6,7 @@ import random
 # -----------------------------
 # Default number of sequences to generate
 NUM_SEQUENCES = 100
-SEQUENCE_LENGTH = random.randint(2, 20)
+SEQUENCE_LENGTH = random.randint(2, 25)
 
 # -----------------------------
 # Load the road network

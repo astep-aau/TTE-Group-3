@@ -46,6 +46,26 @@ namespace TrainingService.Services
             }
         }
         
+        public List<double[]> GetEdgeVectors(List<int> edges)
+        {
+            string jsonArg = JsonSerializer.Serialize(edges);
+            string output = _pythonRunner.RunPythonScript("/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/getEdgeToVectors.py", $"\"{jsonArg}\"");
+
+            if (string.IsNullOrWhiteSpace(output))
+                return new List<double[]>();
+
+            try
+            {
+                var vectors = JsonSerializer.Deserialize<List<List<double>>>(output);
+                return vectors?.Select(v => v.ToArray()).ToList() ?? new List<double[]>();
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"[ERROR] Could not parse vector output: {ex.Message}");
+                return new List<double[]>();
+            }
+        }
+        
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
         public TrainingSet CreateTrainingSet()
         {
@@ -54,17 +74,17 @@ namespace TrainingService.Services
             
             //Laver alle vores Ruter
             var edgeSequences = CreateRoute();
-            
             //For hver rute tjekker vi hvad den totale tid er.
             foreach (var edges in edgeSequences)
             {
+                Console.WriteLine(edges);
                 double totalTime = CreateTimeForRoute(edges);
-                
+                List<double[]> replacedEdges = GetEdgeVectors(edges);
                 //Laver en ny sekvens, med ruten og tiden.
                 var seq = new Sequence
                 {
-                    Edges = edges,
-                    TotalTime = (int)Math.Round(totalTime)
+                    Edges = replacedEdges,
+                    TotalTime = totalTime
                 };
                 
                 //Tilføjer sekvensen til vores Trainingset.

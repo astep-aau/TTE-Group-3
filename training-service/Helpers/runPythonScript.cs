@@ -6,6 +6,8 @@ public class runPythonScript
 {
     public string RunPythonScript(string scriptPath, string args = "")
     {
+        scriptPath = $"\"{scriptPath}\"";
+        
         var psi = new ProcessStartInfo
         {
             FileName = "python3",

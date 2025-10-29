@@ -17,16 +17,14 @@ import networkx as nx
 from node2vec import Node2Vec
 
 # === Configuration ===
-VERTEX_DATA_PATH = "training-service\\vertex_data.json"    # Input file
+VERTEX_DATA_PATH = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/RoadNetwork.json"    # Input file
 DIMENSIONS = 128                         # Size of embedding vector
-WALK_LENGTH = 80                         # Steps per random walk
-NUM_WALKS = 10                           # Walks per edge-node
+WALK_LENGTH = 100                         # Steps per random walk
+NUM_WALKS = 25                           # Walks per edge-node
 P = 1                                    # Return parameter
 Q = 1                                    # In-out parameter
 WORKERS = 4                              # Parallel threads
-OUTPUT_MODEL = "edge2vec_model.model"
-OUTPUT_EMBEDDINGS = "edge_embeddings.emb"
-OUTPUT_MAPPING = "edge_id_mapping.json"
+OUTPUT_EMBEDDINGS = "Helpers/Datasets/edge_embeddings.emb"
 
 # === Step 1: Load vertex graph ===
 print("[INFO] Loading vertex graph...")
@@ -49,6 +47,9 @@ print("[INFO] Converting to line graph (edges become nodes)...")
 G_edge = nx.line_graph(G_vertex)
 print(f"[INFO] Line graph has {len(G_edge.nodes())} edge-nodes.")
 
+edge_to_id = {edge: f"{i}" for i, edge in enumerate(G_edge.nodes())}
+G_edge = nx.relabel_nodes(G_edge, edge_to_id)
+
 # === Step 3: Train Node2Vec on the line graph ===
 print("[INFO] Training Edge2Vec model...")
 node2vec = Node2Vec(
@@ -62,17 +63,5 @@ node2vec = Node2Vec(
 )
 
 model = node2vec.fit(window=10, min_count=1, batch_words=4)
-print("[INFO] Training complete.")
+model.wv.save_word2vec_format(OUTPUT_EMBEDDINGS, write_header=False)
 
-# === Step 4: Save results ===
-print(f"[INFO] Saving model to {OUTPUT_MODEL}...")
-model.save(OUTPUT_MODEL)
-model.wv.save_word2vec_format(OUTPUT_EMBEDDINGS)
-
-# Create an edge-id mapping for later lookup
-edge_to_index = {str(edge): i for i, edge in enumerate(G_edge.nodes())}
-with open(OUTPUT_MAPPING, "w") as f:
-    json.dump(edge_to_index, f, indent=2)
-
-print(f"[INFO] Saved embeddings and mapping successfully.")
-print("[DONE] Edge2Vec training complete.")
