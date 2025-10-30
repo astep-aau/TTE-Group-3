@@ -31,7 +31,7 @@ def get_edge_time(edge_id, chosen_bucket):
     key_to_use = str(closest_bucket)
 
     # Debug info
-    print(f"# Edge {edge_id}, chosen {chosen_bucket}, using bucket {key_to_use}", file=sys.stderr)
+    #print(f"# Edge {edge_id}, chosen {chosen_bucket}, using bucket {key_to_use}", file=sys.stderr)
 
     return traversals[key_to_use]["time to traverse (s)"]
 
@@ -55,7 +55,7 @@ chosen_bucket = random.choice(sorted(all_buckets))
 # Compute traversal times for all edges
 # -----------------------------
 times = [get_edge_time(e, chosen_bucket) for e in edge_sequence]
-print(f"{times}", file=sys.stderr)
+#print(f"{times}", file=sys.stderr)
 
 # -----------------------------
 # Output the list of times

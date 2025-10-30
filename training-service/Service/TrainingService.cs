@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using trainingService.Domain;
 using Helpers;
@@ -9,10 +10,12 @@ namespace TrainingService.Services
     {
         //Laver en instans af python runneren.
         private readonly runPythonScript _pythonRunner = new runPythonScript();
+        //public StatusTracker StatusTracker = new StatusTracker;
         
         //Første del af servicen, den står for at lave en rute/sekvens af veje.
         public List<List<int>> CreateRoute()
         {
+            StatusTracker.Status = "Creating Routes";
             //Laver en liste af sekvenser, som køre fra python prossessen.
             string sequenceJson = _pythonRunner.RunPythonScript("Helpers/dataCreation.py");
             
@@ -65,9 +68,15 @@ namespace TrainingService.Services
                 return new List<double[]>();
             }
         }
+
+        public void LSTMTraining()
+        {
+            StatusTracker.Status = "LSTM Training";
+            _pythonRunner.RunPythonScript("/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/LSTMTraining.py");
+        }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
-        public TrainingSet CreateTrainingSet()
+        public string CreateTrainingSet()
         {
             //Laver et nyt object af vores Model "TrainingSet"
             var trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
@@ -75,22 +84,43 @@ namespace TrainingService.Services
             //Laver alle vores Ruter
             var edgeSequences = CreateRoute();
             //For hver rute tjekker vi hvad den totale tid er.
-            foreach (var edges in edgeSequences)
+            var sequenceCounter = 0;
+            var totalSequences = edgeSequences.Count;
+
+// Use a thread-safe collection for sequences
+            var concurrentSequences = new ConcurrentBag<Sequence>();
+            var options = new ParallelOptions
             {
-                Console.WriteLine(edges);
+                MaxDegreeOfParallelism = 2 // <-- limit to 4 threads
+            };
+
+            Parallel.ForEach(edgeSequences, options, edges =>
+            {
+                int counter = Interlocked.Increment(ref sequenceCounter);
+
+                if (counter % 100 == 0 || counter == totalSequences)
+                {
+                    StatusTracker.Status = $"Estimating Total Time For Routes ({counter} / {totalSequences})";
+                }
+
                 double totalTime = CreateTimeForRoute(edges);
                 List<double[]> replacedEdges = GetEdgeVectors(edges);
-                //Laver en ny sekvens, med ruten og tiden.
+
                 var seq = new Sequence
                 {
                     Edges = replacedEdges,
                     TotalTime = totalTime
                 };
-                
-                //Tilføjer sekvensen til vores Trainingset.
-                trainingSet.Sequences.Add(seq);
-            }
-            return trainingSet;
+
+                concurrentSequences.Add(seq);
+            });
+            var json = JsonSerializer.Serialize(trainingSet);
+            File.WriteAllText("Helpers/Datasets/TrainingSet.JSON", json);
+            
+            LSTMTraining();
+            
+            StatusTracker.Status = "Idle";
+            return "Training Done";
         }
     }
 }

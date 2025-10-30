@@ -17,25 +17,24 @@ namespace TrainingService.Controllers
             _vectorEmbeddingService = vectorEmbeddingService;
         }
         
-        [HttpGet("train")]
+        [HttpPost("train")]
         public IActionResult StartTraining()
         {
-            TrainingSet result = _trainingService.CreateTrainingSet(); 
+            string result = _trainingService.CreateTrainingSet(); 
             return Ok(result);
         }
 
         [HttpGet("status")]
         public IActionResult GetStatus()
         {
-            // Placeholder for job status
-            return Ok(new { Status = "Idle" });
+            return Ok(new { StatusTracker.Status });
         }
 
-        [HttpGet("vector-embedding")]
+        [HttpPost("vector-embedding")]
         public IActionResult GetVectorEmbedding()
         {
-            var result = _vectorEmbeddingService.VectorEmbedding();
-            return Ok(result);
+            _vectorEmbeddingService.VectorEmbedding();
+            return Ok("Done");
         }
     }
 }

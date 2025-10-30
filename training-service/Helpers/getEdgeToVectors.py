@@ -34,7 +34,7 @@ def main():
 
     vectors = []
     for edge_id in edge_ids:
-        vector = embeddings.get(edge_id, [0.0, 0.0])
+        vector = embeddings.get(edge_id, [0.0] * 128)
         vectors.append(vector)
         # If you need debug, send to stderr:
         # print(f"# Edge {edge_id} vector: {vector}", file=sys.stderr)
