@@ -11,6 +11,7 @@ using translator_service.Infrastructure;
 using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
+var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -31,8 +32,10 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Add database configuration
+
 builder.Services.AddDbContext<TranslatorDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 // Add controller services
 builder.Services.AddControllers();
@@ -57,6 +60,19 @@ builder.Services.AddMassTransit(x =>
     {
         cfg.ConfigureEndpoints(context);
     });
+});
+
+// Add CORS services
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: myAllowSpecificOrigins,
+        policy  =>
+        {
+            // Allow your frontend's origin
+            policy.WithOrigins("http://localhost:3000")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
 });
 
 
@@ -99,6 +115,8 @@ app.UseSwaggerUI(options =>
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Route Service API v1");
     options.RoutePrefix = string.Empty;
 });
+
+app.UseCors(myAllowSpecificOrigins);
 
 // Map controllers
 app.MapControllers();

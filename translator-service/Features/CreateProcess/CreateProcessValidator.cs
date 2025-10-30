@@ -9,14 +9,12 @@ public class CreateProcessValidator : AbstractValidator<CreateProcessCommand>
     {
         RuleFor(x => x.CorrelationId)
             .NotEmpty().WithMessage("CorrelationId is required");
-
+        
         RuleFor(x => x.Origin)
-            .NotEmpty().WithMessage("Origin is required")
-            .MinimumLength(2).WithMessage("Origin must be at least 2 characters long");
+            .NotEmpty().WithMessage("Origin is required");
 
         RuleFor(x => x.Destination)
-            .NotEmpty().WithMessage("Destination is required")
-            .MinimumLength(2).WithMessage("Destination must be at least 2 characters long");
+            .NotEmpty().WithMessage("Destination is required");
 
         RuleFor(x => x.CreatedAt)
             .LessThanOrEqualTo(_ => DateTime.UtcNow)

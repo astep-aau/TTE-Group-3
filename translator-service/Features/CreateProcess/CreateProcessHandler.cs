@@ -43,6 +43,8 @@ public class CreateProcessHandler
                     Origin = command.Origin,
                     Destination = command.Destination,
                     CreatedAt = command.CreatedAt,
+                    ModelVersion = command.ModelVersion,
+                    TimeOfTravel = command.TimeOfTravel,
                     routeCreated = command.routeCreated,
                     timeEstimated = command.timeEstimated
                 };
@@ -53,9 +55,10 @@ public class CreateProcessHandler
                 
                 var processEvent = CreateProcessEvent.From(entity);
                 await _emitter.EmitCreateProcessEventAsync(processEvent, ct);
-
+                /*
                 _logger.LogInformation("Process created successfully. Duration: {Duration}ms", 
                     stopwatch.ElapsedMilliseconds);
+                */
             }
             catch (OperationCanceledException)
             {
