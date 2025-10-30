@@ -10,6 +10,7 @@ public class TranslatorDbContext : DbContext
 
     public DbSet<RouteResult> Routes { get; set; } = default!;
     public DbSet<RouteCoordinate> RouteCoordinates { get; set; } = default!;
+    public DbSet<CreateProcessRequest> CreateProcessRequests { get; set; } = default!;
     public DbSet<TravelTimeRequest> TravelTimeRequests { get; set; } = default!;
     public DbSet<TravelTimeResult> TravelTimeResults { get; set; } = default!;
 
