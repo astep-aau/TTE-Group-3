@@ -12,15 +12,12 @@ public class RouteRepository : IRouteRepository
         _context = context;
     }
 
-    public async Task<RouteResult?> GetRouteAsync(Guid correlationId, string origin, string destination, CancellationToken ct)
+    public async Task<RouteResult?> GetRouteAsync(Guid correlationId, CancellationToken ct)
     {
         return await _context.Routes
             .Include(r => r.Path)
             .AsNoTracking()
-            .FirstOrDefaultAsync(r =>
-                r.CorrelationId == correlationId &&
-                r.Origin == origin &&
-                r.Destination == destination, ct);
+            .FirstOrDefaultAsync(r => r.CorrelationId == correlationId, ct);
     }
 
     public async Task SaveRouteAsync(RouteResult route, CancellationToken ct)

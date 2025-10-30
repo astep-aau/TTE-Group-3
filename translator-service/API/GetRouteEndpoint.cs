@@ -18,23 +18,21 @@ public class GetRouteEndpoint : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost]
-    public async Task<IActionResult> GetRouteAsync([FromBody] RouteResultRequest req, CancellationToken ct)
+    [HttpGet]
+    public async Task<IActionResult> GetRouteAsync([FromQuery] Guid correlationId, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         using (_logger.BeginScope(new Dictionary<string, object>
         {
-            ["CorrelationId"] = req.CorrelationId,
-            ["Origin"] = req.Origin ?? "N/A",
-            ["Destination"] = req.Destination ?? "N/A"
+            ["CorrelationId"] = correlationId
         }))
         {
             try
             {
                 _logger.LogInformation("Received route request");
 
-                var command = new GetRouteCommand(req);
+                var command = new GetRouteCommand(correlationId);
                 var validator = new GetRouteValidator();
                 var validation = validator.Validate(command);
 
@@ -43,11 +41,11 @@ public class GetRouteEndpoint : ControllerBase
                     _logger.LogWarning("Validation failed with {ErrorCount} errors: {Errors}",
                         validation.Errors.Count,
                         string.Join(", ", validation.Errors.Select(e => e.ErrorMessage)));
-                    
-                    return BadRequest(new 
-                    { 
+
+                    return BadRequest(new
+                    {
                         errors = validation.Errors.Select(e => e.ErrorMessage),
-                        correlationId = req.CorrelationId
+                        correlationId = correlationId
                     });
                 }
 
@@ -58,26 +56,41 @@ public class GetRouteEndpoint : ControllerBase
                 if (result is null)
                 {
                     _logger.LogWarning("Route not found. Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
-                    return NotFound(new { message = "Route not found", correlationId = req.CorrelationId });
+                    return NotFound(new { message = "Route not found", correlationId = correlationId });
                 }
 
                 _logger.LogInformation("Route retrieved successfully. Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
-                return Ok(result);
+
+                // Map domain entity to DTO that only exposes lat/lon for path entries
+                var dto = new RouteResultDto
+                {
+                    CorrelationId = result.CorrelationId,
+                    Origin = result.Origin,
+                    Destination = result.Destination,
+                    DistanceKm = result.DistanceKm,
+                    Path = result.Path?.Select(p => new RouteCoordinateDto
+                    {
+                        Latitude = p.Latitude,
+                        Longitude = p.Longitude
+                    }).ToList() ?? new List<RouteCoordinateDto>()
+                };
+
+                return Ok(dto);
             }
             catch (OperationCanceledException)
             {
                 _logger.LogWarning("Request cancelled after {Duration}ms", stopwatch.ElapsedMilliseconds);
-                return StatusCode(499, new { message = "Request cancelled", correlationId = req.CorrelationId });
+                return StatusCode(499, new { message = "Request cancelled", correlationId = correlationId });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception occurred while processing route request. Duration: {Duration}ms", 
+                _logger.LogError(ex, "Unhandled exception occurred while processing route request. Duration: {Duration}ms",
                     stopwatch.ElapsedMilliseconds);
-                
-                return StatusCode(500, new 
-                { 
+
+                return StatusCode(500, new
+                {
                     message = "An error occurred while processing your request",
-                    correlationId = req.CorrelationId
+                    correlationId = correlationId
                 });
             }
         }

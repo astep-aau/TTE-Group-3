@@ -21,20 +21,14 @@ public class GetRouteHandler
         
         using (_logger.BeginScope(new Dictionary<string, object>
         {
-            ["CorrelationId"] = command.CorrelationId,
-            ["Origin"] = command.Origin,
-            ["Destination"] = command.Destination
+            ["CorrelationId"] = command.CorrelationId
         }))
         {
             try
             {
                 _logger.LogInformation("Starting route retrieval");
 
-                var route = await _repository.GetRouteAsync(
-                    command.CorrelationId, 
-                    command.Origin, 
-                    command.Destination, 
-                    ct);
+                var route = await _repository.GetRouteAsync(command.CorrelationId, ct);
 
                 stopwatch.Stop();
 
