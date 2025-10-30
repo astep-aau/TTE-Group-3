@@ -5,7 +5,7 @@ import random
 # Configurable parameters
 # -----------------------------
 # Default number of sequences to generate
-NUM_SEQUENCES = 10
+NUM_SEQUENCES = 2000
 SEQUENCE_LENGTH = random.randint(5, 25)
 
 # -----------------------------

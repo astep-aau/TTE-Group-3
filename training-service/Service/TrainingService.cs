@@ -88,7 +88,7 @@ namespace TrainingService.Services
             object listLock = new object(); // for adding to trainingSet.Sequences safely
 
             Parallel.ForEach(edgeSequences,
-                new ParallelOptions { MaxDegreeOfParallelism = 2 },
+                new ParallelOptions { MaxDegreeOfParallelism = 4 },
                 edges =>
                 {
                     double totalTime = CreateTimeForRoute(edges);

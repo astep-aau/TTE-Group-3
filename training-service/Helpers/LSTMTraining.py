@@ -45,12 +45,12 @@ test_loader = DataLoader(test_dataset, batch_size=16)
 
 # 4️⃣ Define LSTM model
 class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size=4):
+    def __init__(self, input_size, hidden_size=32):
         super().__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
-        self.fc1 = nn.Linear(hidden_size, 4)
+        self.fc1 = nn.Linear(hidden_size, 32)
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(4, 1)
+        self.fc2 = nn.Linear(32, 1)
 
     def forward(self, x):
         _, (h_n, _) = self.lstm(x)  # h_n shape: (1, batch, hidden_size)
@@ -64,7 +64,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = LSTMModel(input_size=num_features).to(device)
 
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 # 5️⃣ Training loop
 num_epochs = 50
