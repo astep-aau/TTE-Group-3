@@ -14,7 +14,6 @@ public class TranslatorDbContext : DbContext
     public DbSet<TravelTimeRequest> TravelTimeRequests { get; set; } = default!;
     public DbSet<TravelTimeResult> TravelTimeResults { get; set; } = default!;
 
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<RouteResult>(entity =>
