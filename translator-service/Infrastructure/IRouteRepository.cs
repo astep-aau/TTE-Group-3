@@ -4,7 +4,7 @@ namespace translator_service.Features.GetRoute;
 
 public interface IRouteRepository
 {
-    Task<RouteResult?> GetRouteAsync(Guid correlationId, string origin, string destination, CancellationToken ct);
+    Task<RouteResult?> GetRouteAsync(Guid correlationId, CancellationToken ct);
     Task SaveRouteAsync(RouteResult route, CancellationToken ct);
 
 }

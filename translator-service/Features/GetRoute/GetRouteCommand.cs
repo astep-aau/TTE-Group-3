@@ -16,4 +16,9 @@ public class GetRouteCommand
         Origin = request.Origin;
         Destination = request.Destination;
     }
+
+    public GetRouteCommand(Guid correlationId)
+    {
+        CorrelationId = correlationId;
+    }
 }
