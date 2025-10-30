@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 using trainingService.Domain;
 using Helpers;
@@ -69,55 +68,56 @@ namespace TrainingService.Services
             }
         }
 
-        public void LSTMTraining()
+        public void LstmTraining()
         {
             StatusTracker.Status = "LSTM Training";
-            _pythonRunner.RunPythonScript("/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/LSTMTraining.py");
+            var output = _pythonRunner.RunPythonScript("/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/LSTMTraining.py");
         }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
         public string CreateTrainingSet()
         {
             //Laver et nyt object af vores Model "TrainingSet"
-            var trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
+            TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
             
             //Laver alle vores Ruter
             var edgeSequences = CreateRoute();
             //For hver rute tjekker vi hvad den totale tid er.
-            var sequenceCounter = 0;
-            var totalSequences = edgeSequences.Count;
+            var sequenceCounter = 1;
+            object counterLock = new object(); // for updating sequenceCounter safely
+            object listLock = new object(); // for adding to trainingSet.Sequences safely
 
-// Use a thread-safe collection for sequences
-            var concurrentSequences = new ConcurrentBag<Sequence>();
-            var options = new ParallelOptions
-            {
-                MaxDegreeOfParallelism = 2 // <-- limit to 4 threads
-            };
-
-            Parallel.ForEach(edgeSequences, options, edges =>
-            {
-                int counter = Interlocked.Increment(ref sequenceCounter);
-
-                if (counter % 100 == 0 || counter == totalSequences)
+            Parallel.ForEach(edgeSequences,
+                new ParallelOptions { MaxDegreeOfParallelism = 2 },
+                edges =>
                 {
-                    StatusTracker.Status = $"Estimating Total Time For Routes ({counter} / {totalSequences})";
-                }
+                    double totalTime = CreateTimeForRoute(edges);
+                    List<double[]> replacedEdges = GetEdgeVectors(edges);
 
-                double totalTime = CreateTimeForRoute(edges);
-                List<double[]> replacedEdges = GetEdgeVectors(edges);
+                    var seq = new Sequence
+                    {
+                        Edges = replacedEdges,
+                        TotalTime = totalTime
+                    };
 
-                var seq = new Sequence
-                {
-                    Edges = replacedEdges,
-                    TotalTime = totalTime
-                };
+                    // Safely add to shared list
+                    lock (listLock)
+                    {
+                        trainingSet.Sequences.Add(seq);
+                    }
 
-                concurrentSequences.Add(seq);
-            });
+                    // Update status safely
+                    lock (counterLock)
+                    {
+                        sequenceCounter++;
+                        StatusTracker.Status = $"Estimating Total Time For Routes ({sequenceCounter} / {edgeSequences.Count})";
+                    }
+                });
+            
             var json = JsonSerializer.Serialize(trainingSet);
             File.WriteAllText("Helpers/Datasets/TrainingSet.JSON", json);
-            
-            LSTMTraining();
+
+            LstmTraining();
             
             StatusTracker.Status = "Idle";
             return "Training Done";

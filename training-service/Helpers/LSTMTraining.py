@@ -1,8 +1,8 @@
 import json
 import numpy as np
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-from sklearn.model_selection import train_test_split
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset, random_split
 import matplotlib.pyplot as plt
 import os
 
@@ -16,8 +16,8 @@ X = []
 y = []
 
 for seq in data["Sequences"]:
-    edges = seq["Edges"]  # list of vectors
-    total_time = seq.get("TotalTime", 0)  # numeric target
+    edges = seq["Edges"]
+    total_time = seq.get("TotalTime", 0)
     X.append(edges)
     y.append(total_time)
 
@@ -31,50 +31,103 @@ for i, seq in enumerate(X):
     for j, edge_vector in enumerate(seq):
         X_padded[i, j, :] = edge_vector
 
-X = X_padded
-y = np.array(y, dtype=np.float32)
+X = torch.tensor(X_padded)
+y = torch.tensor(y, dtype=torch.float32).unsqueeze(1)  # shape (N, 1)
 
 # 3️⃣ Train/test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+dataset = TensorDataset(X, y)
+test_size = int(0.2 * len(dataset))
+train_size = len(dataset) - test_size
+train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
-# 4️⃣ Build LSTM model
-sequence_length = X.shape[1]
-num_features = X.shape[2]
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=16)
 
-model = Sequential()
-model.add(LSTM(128, input_shape=(sequence_length, num_features), return_sequences=False))
-model.add(Dense(4, activation="relu"))
-model.add(Dense(1))  # output: predicted total time
+# 4️⃣ Define LSTM model
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size=4):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.fc1 = nn.Linear(hidden_size, 4)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(4, 1)
 
-model.compile(optimizer="adam", loss="mse", metrics=["mse"])
+    def forward(self, x):
+        _, (h_n, _) = self.lstm(x)  # h_n shape: (1, batch, hidden_size)
+        h_n = h_n.squeeze(0)
+        out = self.fc1(h_n)
+        out = self.relu(out)
+        out = self.fc2(out)
+        return out
 
-# 5️⃣ Train
-history = model.fit(
-    X_train, y_train,
-    validation_data=(X_test, y_test),
-    epochs=50,
-    batch_size=16
-)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = LSTMModel(input_size=num_features).to(device)
 
-# 6️⃣ Evaluate
-loss, mse = model.evaluate(X_test, y_test)
-print(f"Test Loss: {loss:.4f}, Test MSE: {mse:.4f}")
+criterion = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-# 7️⃣ Predict example
-predictions = model.predict(X_test[:5])
-print("Predictions:", predictions.flatten())
-print("Actual:", y_test[:5])
+# 5️⃣ Training loop
+num_epochs = 50
+train_losses, val_losses = [], []
 
-# 8️⃣ Plot MSE evolution and save safely
+for epoch in range(num_epochs):
+    model.train()
+    epoch_loss = 0
+    for xb, yb in train_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        optimizer.zero_grad()
+        out = model(xb)
+        loss = criterion(out, yb)
+        loss.backward()
+        optimizer.step()
+        epoch_loss += loss.item() * xb.size(0)
+    epoch_loss /= len(train_loader.dataset)
+    train_losses.append(epoch_loss)
+
+    # Validation
+    model.eval()
+    val_loss = 0
+    with torch.no_grad():
+        for xb, yb in test_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            out = model(xb)
+            loss = criterion(out, yb)
+            val_loss += loss.item() * xb.size(0)
+    val_loss /= len(test_loader.dataset)
+    val_losses.append(val_loss)
+
+    print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f}")
+
+# 6️⃣ Evaluate on test set
+model.eval()
+test_loss = 0
+predictions = []
+actuals = []
+with torch.no_grad():
+    for xb, yb in test_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        out = model(xb)
+        test_loss += criterion(out, yb).item() * xb.size(0)
+        predictions.append(out.cpu().numpy())
+        actuals.append(yb.cpu().numpy())
+
+test_loss /= len(test_loader.dataset)
+predictions = np.vstack(predictions).flatten()
+actuals = np.vstack(actuals).flatten()
+print(f"Test MSE: {test_loss:.4f}")
+print("Predictions:", predictions[:5])
+print("Actual:", actuals[:5])
+
+# 7️⃣ Plot training and validation loss
 output_dir = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets"
 os.makedirs(output_dir, exist_ok=True)
-
 plot_path = os.path.join(output_dir, "training_loss.png")
-plt.plot(history.history['loss'], label='Train Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.xlabel('Epochs')
-plt.ylabel('MSE')
-plt.title('Training Loss over Time')
+
+plt.plot(train_losses, label="Train Loss")
+plt.plot(val_losses, label="Validation Loss")
+plt.xlabel("Epochs")
+plt.ylabel("MSE")
+plt.title("Training Loss over Time")
 plt.legend()
 plt.savefig(plot_path)
 plt.close()
