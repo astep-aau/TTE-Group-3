@@ -62,7 +62,14 @@ builder.Services.AddMassTransit(x =>
 
 // Register your handler and repository
 builder.Services.AddScoped<GetRouteHandler>();
-builder.Services.AddScoped<IRouteRepository, RouteRepository>(); 
+builder.Services.AddScoped<IRouteRepository, RouteRepository>();
+builder.Services.AddScoped<GetTravelTimeHandler>();
+builder.Services.AddScoped<ITravelTimeRepository, TravelTimeRepository>();
+
+// CreateProcess registrations (required for endpoint to resolve handler/repo)
+builder.Services.AddScoped<CreateProcessHandler>();
+builder.Services.AddScoped<ICreateProcessRepository, CreateProcessRepository>();
+builder.Services.AddScoped<CreateProcessEmitter>();
 
 var app = builder.Build();
 
