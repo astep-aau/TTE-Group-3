@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 
 namespace Helpers;
 
@@ -18,14 +19,16 @@ public class runPythonScript
             CreateNoWindow = true
         };
 
-        using (var process = Process.Start(psi))
-        {
+        using (var process = Process.Start(psi)){
             string output = process.StandardOutput.ReadToEnd();
             string errors = process.StandardError.ReadToEnd();
             process.WaitForExit();
 
-            if (!string.IsNullOrEmpty(errors))
-                Console.WriteLine("Python errors: " + errors);
+            if (process.ExitCode != 0){
+                string errorMessage = errors.Trim();
+                errorMessage = errorMessage.Replace("\"", "");
+                throw new Exception($"{Path.GetFileName(scriptPath)} failed: {errorMessage}");
+            }
 
             return output.Trim();
         }
