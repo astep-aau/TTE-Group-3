@@ -12,17 +12,19 @@ namespace TrainingService.Services
         //public StatusTracker StatusTracker = new StatusTracker;
         
         //Første del af servicen, den står for at lave en rute/sekvens af veje.
-        public List<List<int>> CreateRoute()
-        {
+        public List<List<int>> CreateRoute(){
             StatusTracker.Status = "Creating Routes";
-            //Laver en liste af sekvenser, som køre fra python prossessen.
-            string sequenceJson = _pythonRunner.RunPythonScript("Helpers/dataCreation.py");
             
-            //Laver vores Json om til en List af List af sekvenser (C# Object)
-            var edgeSequences = JsonSerializer.Deserialize<List<List<int>>>(sequenceJson);
-            
-            //Retunere vores sekvenser, hvis empty retunere et empty Object.
-            return edgeSequences ?? new List<List<int>>();
+            try{
+                string sequenceJson = _pythonRunner.RunPythonScript("Helpers/dataCreation.py");
+                var edgeSequences = JsonSerializer.Deserialize<List<List<int>>>(sequenceJson);
+                return edgeSequences ?? new List<List<int>>();
+            }
+            catch (Exception ex){
+                // Log the error and/or propagate it to Swagger
+                StatusTracker.Status = "Error creating routes: " + ex.Message;
+                throw; // This ensures Swagger sees a 500 response with the error
+            }
         }
 
         // Anden del af servicen, den står for at tage alle vores edges og udregne en samlet tid for sekvensen

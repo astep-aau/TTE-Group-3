@@ -18,10 +18,14 @@ namespace TrainingService.Controllers
         }
         
         [HttpPost("train")]
-        public IActionResult StartTraining()
-        {
-            string result = _trainingService.CreateTrainingSet(); 
-            return Ok(result);
+        public IActionResult StartTraining(){
+            try{
+                string result = _trainingService.CreateTrainingSet();
+                return Ok(result);
+            }
+            catch (Exception ex){
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         [HttpGet("status")]

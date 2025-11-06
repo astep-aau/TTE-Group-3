@@ -1,45 +1,62 @@
 import json
 import random
+import sys
+from pathlib import Path
 
-NUM_SEQUENCES = 500
-SEQUENCE_LENGTH = random.randint(100, 150)
-data_path = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/RoadNetwork.json"  # Change path if needed
+# === Start Parameters ===
+NumberOfSequences = 500
+LengthOfSequence = random.randint(100, 150)
+InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json" 
 
-with open(data_path, "r") as f:
-    graph_data = json.load(f)
+# === Function to creates routes ===
+def random_sequence(graph, lengthOfSequence):
+    if not graph: #Check if the data is empty, if it is raise an error.
+        raise ValueError('"RoadNetwork.json" is empty or not loaded. (Empty Dataset)')
 
-def random_sequence(graph, length=2):
-    if not graph:
-        return []
+    current_node = random.choice(list(graph.keys()))    #Find the current node, takes a random from the dataset.
+    sequence = []                                       #List of edges that form the route.
+    visited_edges = set()                               #List of visited edges.
 
-    #Choses a random edge
-    current_node = random.choice(list(graph.keys()))
-    sequence = []
-    visited_edges = set()  # Track edges already in sequence
-
-    for _ in range(length):
-        node_data = graph.get(current_node)
-        if not node_data:
+    #Making a route 
+    for _ in range(lengthOfSequence):       #Loops over lengthOfSequence times.
+        node_data = graph.get(current_node) #Take the node in our graph we want to use.
+        if not node_data:                   #Check if the node exist.
             break
 
-        edges = node_data.get("outward_edges", [])
-        vertices = node_data.get("outward_vertices", [])
+        edges = node_data.get("outward_edges", [])       #Finding all of the edges we can take from that node.
+        nodes = node_data.get("outward_vertices", [])    #Finding all of the nodes that each edge go to.
 
-        # Filter out edges we've already visited
-        available = [(e, v) for e, v in zip(edges, vertices) if e not in visited_edges]
-        if not available:
+            
+        available = []                      #Creating a list of available edges we can take.
+        for e, v in zip(edges, nodes):      #Makes all the pairs (edge, node).
+            if e not in visited_edges:      #Check if the edge is available (Not used in the route before).
+                available.append((e, v))    #If available append to the list.
+            
+        if not available:   #If there is no availbe edges, stop it here.
             break
 
-        chosen_edge, next_node = random.choice(available)
-        sequence.append(chosen_edge)
-        visited_edges.add(chosen_edge)
-        current_node = str(next_node)
+        chosen_edge, next_node = random.choice(available)   #Picks a random of all available edges.
+        sequence.append(chosen_edge)                        #Add the edge to the list.
+        visited_edges.add(chosen_edge)                      #Add the edge to visited List.
+        current_node = str(next_node)                       #Change the current node to the new noce.
 
-        if current_node not in graph:
-            break
+    return sequence #Return the sequence when we are done.
 
-    return sequence
+try:
+    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+        raise FileNotFoundError(f'"RoadNetwork.json" does not exist. (Mising Dataset)')
 
-all_sequences = [random_sequence(graph_data, SEQUENCE_LENGTH) for _ in range(NUM_SEQUENCES)]
+    #Opens the file and load data into "GraphData".
+    with open(InputFile, "r") as f:
+        GraphData = json.load(f)
 
-print(json.dumps(all_sequences))
+    Routes = []
+    for _ in range(NumberOfSequences):
+        sequence = random_sequence(GraphData, LengthOfSequence)
+        Routes.append(sequence)
+
+    print(json.dumps(Routes))
+
+except Exception as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(1)
