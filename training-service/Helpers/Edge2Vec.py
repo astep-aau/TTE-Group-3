@@ -1,56 +1,57 @@
-"""
-edge2vec_train.py
------------------
-Train Edge2Vec embeddings from a vertex-based graph (like a road network).
-
-Each road segment (edge) becomes a "node" in the line graph, so Node2Vec learns
-embeddings that represent the relationships between connected roads.
-
-Outputs:
-- edge2vec_model.model   (full gensim Word2Vec model)
-- edge_embeddings.emb    (embeddings in text format)
-- edge_id_mapping.json   (optional: mapping edge_id → index)
-"""
-
 import json
 import networkx as nx
 from node2vec import Node2Vec
+from gensim.models import KeyedVectors
 
-# === Configuration ===
-VERTEX_DATA_PATH = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/RoadNetwork.json"    # Input file
-DIMENSIONS = 128                         # Size of embedding vector
-WALK_LENGTH = 100                         # Steps per random walk
-NUM_WALKS = 25                           # Walks per edge-node
-P = 1                                    # Return parameter
-Q = 1                                    # In-out parameter
-WORKERS = 4                              # Parallel threads
-OUTPUT_EMBEDDINGS = "Helpers/Datasets/edge_embeddings.emb"
+DIMENSIONS = 64
+WALK_LENGTH = 15
+NUM_WALKS = 10
+P = 1
+Q = 1
+WORKERS = 4
+InputFile = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/RoadNetwork.json"
+OutputFile = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/edgeEmbeddings.emb"
 
-# === Step 1: Load vertex graph ===
+# Load vertex data
 print("[INFO] Loading vertex graph...")
-with open(VERTEX_DATA_PATH, "r") as f:
+with open(InputFile, "r") as f:
     vertex_data = json.load(f)
 
-# Build original directed graph (nodes = intersections, edges = roads)
-G_vertex = nx.DiGraph()
+# Build NEW graph using MultiDiGraph and edge IDs
+G_vertex = nx.MultiDiGraph()
 for src, info in vertex_data.items():
     src_id = int(src)
-    for tgt in info.get("outward_vertices", []):
-        G_vertex.add_edge(src_id, int(tgt))
+    edge_ids = info.get("outward_edges", [])
+    targets = info.get("outward_vertices", [])
 
-print(f"[INFO] Loaded vertex graph with {len(G_vertex.nodes())} nodes and {len(G_vertex.edges())} edges.")
+    if len(edge_ids) != len(targets):
+        print(f"[WARN] Node {src_id} has mismatched lists: {len(edge_ids)} edges, {len(targets)} vertices")
 
-# === Step 2: Convert to line graph (edges become nodes) ===
-# In a line graph: each edge (u→v) in G becomes a node in G_line
-# Two "edge-nodes" in G_line are connected if they share a common vertex in G
+    for edge_id, tgt in zip(edge_ids, targets):
+        tgt_id = int(tgt)
+        # Add each road as unique edge with edge_id as key
+        G_vertex.add_edge(src_id, tgt_id, key=edge_id, edge_id=edge_id)
+
+print(f"[INFO] New graph: {len(G_vertex.nodes())} nodes, {G_vertex.number_of_edges()} edges")
+
+# Collect all unique edge IDs from dataset
+dataset_edge_ids = {d['edge_id'] for u, v, k, d in G_vertex.edges(keys=True, data=True)}
+
+# === Step 3: Convert to line graph (edges become nodes) ===
 print("[INFO] Converting to line graph (edges become nodes)...")
 G_edge = nx.line_graph(G_vertex)
 print(f"[INFO] Line graph has {len(G_edge.nodes())} edge-nodes.")
 
-edge_to_id = {edge: f"{i}" for i, edge in enumerate(G_edge.nodes())}
+# === Step 3a: Relabel line graph nodes to use original edge_ids ===
+edge_to_id = {}
+for u, v, k in G_edge.nodes():
+    # Each node in line graph = an edge in original graph (u,v,k)
+    edge_data = G_vertex.get_edge_data(u, v, k)
+    edge_to_id[(u,v,k)] = str(edge_data['edge_id'])
+
 G_edge = nx.relabel_nodes(G_edge, edge_to_id)
 
-# === Step 3: Train Node2Vec on the line graph ===
+# === Step 4: Train Node2Vec on the line graph ===
 print("[INFO] Training Edge2Vec model...")
 node2vec = Node2Vec(
     G_edge,
@@ -61,7 +62,25 @@ node2vec = Node2Vec(
     q=Q,
     workers=WORKERS
 )
-
 model = node2vec.fit(window=10, min_count=1, batch_words=4)
-model.wv.save_word2vec_format(OUTPUT_EMBEDDINGS, write_header=False)
 
+# Save embeddings
+model.wv.save_word2vec_format(OutputFile, write_header=False)
+emb = KeyedVectors.load_word2vec_format(OutputFile, binary=False, no_header=True)
+
+missing_edges = []
+for edge_id in dataset_edge_ids:
+    if str(edge_id) not in emb:
+        missing_edges.append(edge_id)
+
+OutputFileSorted = OutputFile
+
+with open(OutputFile, "r") as f:
+    lines = f.readlines()
+
+lines_sorted = sorted(lines, key=lambda x: int(x.split()[0]))
+
+with open(OutputFileSorted, "w") as f:
+    f.writelines(lines_sorted)
+
+print(f"[INFO] Sorted embeddings saved to {OutputFile}")

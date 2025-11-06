@@ -1,15 +1,14 @@
 import sys
 import json
 
-# === CONFIGURATION ===
-EMBEDDING_FILE = r"/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/edge_embeddings.emb"
+InputFile = r"/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/edgeEmbeddings.emb"
 
 def load_embeddings(filepath):
     embeddings = {}
     with open(filepath, "r") as f:
         for line in f:
             parts = line.strip().split()
-            if len(parts) < 3:
+            if len(parts) < 2:
                 continue
             try:
                 edge_id = int(parts[0])
@@ -21,25 +20,30 @@ def load_embeddings(filepath):
 
 def main():
     if len(sys.argv) < 2:
+        # No input provided, return empty list
         print(json.dumps([]))
         return
 
     try:
         edge_ids = json.loads(sys.argv[1])
-    except json.JSONDecodeError:
+        if not isinstance(edge_ids, list):
+            raise ValueError
+    except (json.JSONDecodeError, ValueError):
         print(json.dumps([]))
         return
 
-    embeddings = load_embeddings(EMBEDDING_FILE)
+    # Load embeddings
+    embeddings = load_embeddings(InputFile)
 
+    # Lookup vectors
     vectors = []
     for edge_id in edge_ids:
-        vector = embeddings.get(edge_id, [0.0] * 128)
+        vector = embeddings.get(edge_id)  # edge_id must be int
         vectors.append(vector)
-        # If you need debug, send to stderr:
-        # print(f"# Edge {edge_id} vector: {vector}", file=sys.stderr)
+        if vector is None:
+            print(f"[WARN] Missing embedding for edge {edge_id}", file=sys.stderr)
 
-    # ONLY print JSON to stdout
+    # Output as JSON
     print(json.dumps(vectors))
 
 if __name__ == "__main__":
