@@ -53,7 +53,7 @@ namespace TrainingService.Services
         public List<double[]> GetEdgeVectors(List<int> edges)
         {
             string jsonArg = JsonSerializer.Serialize(edges);
-            string output = _pythonRunner.RunPythonScript("/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/getEdgeToVectors.py", $"\"{jsonArg}\"");
+            string output = _pythonRunner.RunPythonScript("Helpers/getEdgeToVectors.py", $"\"{jsonArg}\"");
 
             if (string.IsNullOrWhiteSpace(output))
                 return new List<double[]>();
@@ -73,7 +73,7 @@ namespace TrainingService.Services
         public void LstmTraining()
         {
             StatusTracker.Status = "LSTM Training";
-            var output = _pythonRunner.RunPythonScript("/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/LSTMTraining.py");
+            var output = _pythonRunner.RunPythonScript("Helpers/LSTMTraining.py");
         }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
