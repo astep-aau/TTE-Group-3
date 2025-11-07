@@ -5,20 +5,22 @@ using MassTransit;
 using Microsoft.Extensions.Logging;
 using PathfindingService.Domain.Entities;
 using PathfindingService.Domain.Entities.Events;
+using FluentValidation;
+#nullable enable
 namespace PathfindingService.Features.CreateRoute;
 
 public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
 {
     private readonly CreateRouteHandler _handler;
     private readonly ILogger<CreateRouteConsumer> _logger;
-    
-    // TODO: Add a validator
-    // private CreateProcessValidator _validator;
+    private readonly IValidator<CreateProcessEvent> _validator;
 
-    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger)
+    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator)
     {
         _handler = handler;
         _logger = logger;
+        _validator = validator;
+        _ = _handler; // reference the handler to avoid 'assigned but never used' warning until handler is implemented
     }
 
     public async Task Consume(ConsumeContext<CreateProcessEvent> context)
@@ -27,27 +29,35 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
 
         _logger.LogInformation("Received CreateProcessEvent for CorrelationId={CorrelationId}", evt.CorrelationId);
 
+        // validate the incoming event
+        var validation = await _validator.ValidateAsync(evt, context.CancellationToken);
+        if (!validation.IsValid)
+        {
+            _logger.LogWarning("CreateProcessEvent validation failed: {Errors}", validation.Errors);
+            return; // drop/ack the message - or move to dead-letter depending on your policy
+        }
+
         var (origLat, origLon) = ParseLatLon(evt.Origin);
         var (destLat, destLon) = ParseLatLon(evt.Destination);
 
-        if (origLat is null && origLon is null)
+        if (origLat is null || origLon is null)
             _logger.LogWarning("Event Origin could not be parsed as lat,lon: {Origin}", evt.Origin);
 
-        var originNode = CreateOsmNode(origLat, origLon);
+        var originNode = (origLat is not null && origLon is not null) ? CreateOsmNode(origLat, origLon) : null;
         _logger.LogInformation("Created origin OSM node: {Node}", originNode);
 
-        if (destLat is not null && destLon is not null)
+        if (destLat is null || destLon is null)
             _logger.LogWarning("Event Destination could not be parsed as lat,lon: {Destination}", evt.Destination);
 
-        var destinationNode = CreateOsmNode(destLat, destLon);
+        var destinationNode = (destLat is not null && destLon is not null) ? CreateOsmNode(destLat, destLon) : null;
         _logger.LogInformation("Created destination OSM node: {Node}", destinationNode);
 
         var payload = new ProcessPayload
         {
             ProcessId = evt.ProcessId,
             CorrelationId = evt.CorrelationId,
-            Origin = originNode,
-            Destination = destinationNode,
+            Origin = originNode ?? string.Empty,
+            Destination = destinationNode ?? string.Empty,
             TimeOfTravel = evt.TimeOfTravel,
             CreatedAt = evt.CreatedAt,
             ModelVersion = evt.ModelVersion
@@ -57,8 +67,10 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         // await _handler.SaveRouteAsync(route, context.CancellationToken);
     }
 
-    private string CreateOsmNode(string lat, string lon)
+    private string? CreateOsmNode(string? lat, string? lon)
     {
+        if (string.IsNullOrWhiteSpace(lat) || string.IsNullOrWhiteSpace(lon)) return null;
+
         const string pythonPath = "python3";
         const string scriptPath = "Helper/CreateOsmNode.py";
 
@@ -75,7 +87,7 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         using var process = new Process();
         process.StartInfo = psi;
         process.Start();
-        var output = process.StandardOutput.ReadToEnd();    // output: string
+        var output = process.StandardOutput.ReadToEnd().Trim();    // output: string
         var error = process.StandardError.ReadToEnd();      // error: string
         process.WaitForExit();
 
@@ -86,8 +98,9 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
     }
 
     // Parse lat/lon from evt.Origin and evt.Destination. Expecting format like "lat,lon".
-    private (string lat, string lon) ParseLatLon(string s)
+    private (string? lat, string? lon) ParseLatLon(string s)
     {
+        if (string.IsNullOrWhiteSpace(s)) return (null, null);
         var parts = s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2) return (null, null);
         return (parts[0], parts[1]);
