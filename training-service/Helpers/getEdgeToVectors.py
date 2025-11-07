@@ -1,50 +1,38 @@
 import sys
 import json
+from pathlib import Path
 
-InputFile = r"/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/edgeEmbeddings.emb"
+# ===Function that converts a list of edges to their vectors===
+def convertEdgeToVector(embeddings, edges):
+    vectors = []                                                            #List of vectors to return    
+    for edge in edges:                                                      #Loop over all edges  
+        vector = embeddings.get(str(edge))                                       #Get the vector for the edge
+        if vector is None:                                                  #Check if the vector is missing
+            raise ValueError('No vector for that Edge. (Missing values)')   
+        vectors.append(vector)                                              #Add the vector to the list
+    return vectors
 
-def load_embeddings(filepath):
-    embeddings = {}
-    with open(filepath, "r") as f:
-        for line in f:
-            parts = line.strip().split()
-            if len(parts) < 2:
-                continue
-            try:
-                edge_id = int(parts[0])
-                vector = [float(x) for x in parts[1:]]
-                embeddings[edge_id] = vector
-            except ValueError:
-                continue
-    return embeddings
+#Runtime Code
+try:
+    InputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"   #Path to the embeddings file
+    edges = json.loads(sys.argv[1])                                         #List of edges to convert
 
-def main():
-    if len(sys.argv) < 2:
-        # No input provided, return empty list
-        print(json.dumps([]))
-        return
+    if not edges: #Check if the data is empty, if it is raise an error.
+        raise ValueError('No route data provided. (Empty Route)')
+    
+    if not InputFile.is_file(): #Check if the file can be found, if not raise an error. 
+        raise FileNotFoundError(f'"edgeEmbeddings.emb" does not exist. (Missing dataset)')
+    
+    with open(InputFile, "r") as f:
+        Embeddings = json.load(f)
 
-    try:
-        edge_ids = json.loads(sys.argv[1])
-        if not isinstance(edge_ids, list):
-            raise ValueError
-    except (json.JSONDecodeError, ValueError):
-        print(json.dumps([]))
-        return
+    #Call the function that converts edges to their vectors
+    vectors = convertEdgeToVector(Embeddings, edges)
 
-    # Load embeddings
-    embeddings = load_embeddings(InputFile)
-
-    # Lookup vectors
-    vectors = []
-    for edge_id in edge_ids:
-        vector = embeddings.get(edge_id)  # edge_id must be int
-        vectors.append(vector)
-        if vector is None:
-            print(f"[WARN] Missing embedding for edge {edge_id}", file=sys.stderr)
-
-    # Output as JSON
+    if not vectors: #Check if the data is empty, if it is raise an error.
+        raise ValueError('No Vectors Converted. (Error in Conversion)')
+    
     print(json.dumps(vectors))
-
-if __name__ == "__main__":
-    main()
+except Exception as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(1)
