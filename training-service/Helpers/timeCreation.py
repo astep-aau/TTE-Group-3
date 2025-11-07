@@ -1,52 +1,67 @@
 import json
 import sys
 import random
+from pathlib import Path
 
-InputFile = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/RoadTraversal.json"
+# === Start Parameters ===
+Route = json.loads(sys.argv[1])
+InputFile = Path(__file__).parent / "Datasets" / "RoadTraversal.json"
 
-with open(InputFile, "r") as f:
-    traversal_data = json.load(f)
+# === Function to calculate edge traversal times ===
+def get_edge_time(route, traversalData):
+    #Compute the traversal times for each edge in the route based on traversal data.
+    times = []                  #List of times for each edge in the route
+    bucketsAvailable = set()    #Creates a empty set with all available buckets for the route
+    
+    for edgeId in route:                                           #This loop over each each in the route
+        edge = str(edgeId)                                         #Convert the edge to string as our data is JSON
+        if edge in traversalData:                                   #Check if the edge exist in the data
+            edgeData = traversalData[edge]                          #Get the data for that edge
+            edgeTraversals = edgeData.get("traversals", {})         #Get all traversals for that edge
+            bucketKeys = edgeTraversals.keys()                      #Get all bucket keys for that edge
+            bucketsAvailable.update(int(k) for k in bucketKeys)     #Add the buckets to the set of all buckets
 
-edge_sequence = json.loads(sys.argv[1])
+    #If there is no available buckets, return empty list
+    if not bucketsAvailable:
+        return []
 
-def get_edge_time(edge_id, chosen_bucket):
-    edge_str = str(edge_id)
-    if edge_str not in traversal_data:
-        return 0.0
+    # Chose a random bucket from the available buckets
+    chosen_bucket = random.choice(sorted(bucketsAvailable))
 
-    traversals = traversal_data[edge_str].get("traversals", {})
-    if not traversals:
-        return 5.0
+    # Compute the time of each edge with the chosen bucket
+    for edgeId in route:                 #Loop over each edge in the route
+        edge = str(edgeId)               #Convert the edge to string
+        if edge not in traversalData:    #If the edge is not in the data, assign a default time of 0.0 seconds
+            times.append(0.0)               
+            continue
 
-    bucket_keys = sorted(int(k) for k in traversals.keys())
+        traversals = traversalData[edge].get("traversals", {})  #Get all traversals for that edge
+        if not traversals:                                      #If there is no data asign default 5.0 seconds  
+            times.append(5.0)
+            continue
 
-    # Pick the closest available bucket
-    closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket))
-    key_to_use = str(closest_bucket)
+        bucket_keys = sorted(int(k) for k in traversals.keys())                 #Finding all bucket keys for that edge
+        closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket)) #Find the key closest to the chosen bucket
+        times.append(traversals[str(closest_bucket)]["time to traverse (s)"])   #Append the time to the list of times
 
-    return traversals[key_to_use]["time to traverse (s)"]
+    return times
 
-# Pick a single random bucket for the whole sequence
-all_buckets = set()
-for edge_id in edge_sequence:
-    edge_str = str(edge_id)
-    if edge_str in traversal_data:
-        all_buckets.update(int(k) for k in traversal_data[edge_str].get("traversals", {}).keys())
+try:
+    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+        raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
 
-if not all_buckets:
-    print(json.dumps([0.0] * len(edge_sequence)))
-    sys.exit(0)
+    #Opens the file and load data into "traversalData".
+    with open(InputFile, "r") as f:
+        traversalData = json.load(f)
 
-chosen_bucket = random.choice(sorted(all_buckets))
+    if not traversalData: #Check if travalsalData is empty, if it is raise an error.
+        raise ValueError('"RoadTraversal.json" is empty or not loaded. (Empty Dataset)')
+    
+    if not Route: #Check if the data is empty, if it is raise an error.
+        raise ValueError('No route data provided. (Empty Route)')
 
-# -----------------------------
-# Compute traversal times for all edges
-# -----------------------------
-times = [get_edge_time(e, chosen_bucket) for e in edge_sequence]
-
-# Output
-print(json.dumps(times))
-
-# Debug info
-#print(f"# Edge {edge_id}, chosen {chosen_bucket}, using bucket {key_to_use}", file=sys.stderr)
-#print(f"{times}", file=sys.stderr)
+    times = get_edge_time(Route, traversalData)
+    print(json.dumps(times))
+except Exception as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(1)
