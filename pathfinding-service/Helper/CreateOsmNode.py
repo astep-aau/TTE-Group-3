@@ -7,19 +7,18 @@ TOKEN_FILE = "osm_token.json"
 API_BASE = "https://api.openstreetmap.org/api/0.6"
 AUTH_BASE = "https://www.openstreetmap.org/oauth2"
 
-# Load credentials from .env file
-load_dotenv()
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-
-if not CLIENT_ID or not CLIENT_SECRET:
-    print("❌ Missing CLIENT_ID or CLIENT_SECRET in .env file.")
-    sys.exit(1)
+# # Load credentials from .env file (not needed if token is already saved)
+# load_dotenv()
+# CLIENT_ID = os.getenv("CLIENT_ID")
+# CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+# 
+# if not CLIENT_ID or not CLIENT_SECRET:
+#     print("❌ Missing CLIENT_ID or CLIENT_SECRET in .env file.")
+#     sys.exit(1)
 
 # === TOKEN MANAGEMENT ======================================================
 def save_token(token: dict):
     """Save OAuth token JSON to file."""
-    token["expires_at"] = time.time() + token.get("expires_in", 3600)
     with open(TOKEN_FILE, "w") as f:
         json.dump(token, f)
 
@@ -30,55 +29,38 @@ def load_token():
             return json.load(f)
     return None
 
-def refresh_token(refresh_token: str):
-    """Refresh OAuth token using refresh_token."""
-    print("🔄 Refreshing access token...")
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-    }
-    r = requests.post(f"{AUTH_BASE}/token", data=data)
-    r.raise_for_status()
-    new_token = r.json()
-    save_token(new_token)
-    print("✅ Token refreshed.")
-    return new_token
-
 def get_token():
     """Retrieve valid access token (refresh or prompt if needed)."""
     token = load_token()
     if token:
-        if time.time() < token.get("expires_at", 0):
-            return token["access_token"]
-        elif "refresh_token" in token:
-            token = refresh_token(token["refresh_token"])
-            return token["access_token"]
+        return token["access_token"]
+    else:
+        print("No existing token found.")
+        return None
 
-    # Manual login
-    auth_url = (
-        f"{AUTH_BASE}/authorize?"
-        f"client_id={CLIENT_ID}&response_type=code&scope=write_api&"
-        f"redirect_uri=urn:ietf:wg:oauth:2.0:oob"
-    )
-    print("🌍 Open this URL in your browser to authorize:")
-    print(auth_url)
-    code = input("\nPaste the authorization code here: ").strip()
-
-    # Exchange for access token
-    data = {
-        "grant_type": "authorization_code",
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "code": code,
-        "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
-    }
-    r = requests.post(f"{AUTH_BASE}/token", data=data)
-    r.raise_for_status()
-    token = r.json()
-    save_token(token)
-    return token["access_token"]
+    # # Manual login (not necessary if token exists)
+    # auth_url = (
+    #     f"{AUTH_BASE}/authorize?"
+    #     f"client_id={CLIENT_ID}&response_type=code&scope=write_api&"
+    #     f"redirect_uri=urn:ietf:wg:oauth:2.0:oob"
+    # )
+    # print("🌍 Open this URL in your browser to authorize:")
+    # print(auth_url)
+    # code = input("\nPaste the authorization code here: ").strip()
+    # 
+    # # Exchange for access token
+    # data = {
+    #     "grant_type": "authorization_code",
+    #     "client_id": CLIENT_ID,
+    #     "client_secret": CLIENT_SECRET,
+    #     "code": code,
+    #     "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+    # }
+    # r = requests.post(f"{AUTH_BASE}/token", data=data)
+    # r.raise_for_status()
+    # token = r.json()
+    # save_token(token)
+    # return token["access_token"]
 
 # === MAIN SCRIPT ===========================================================
 ACCESS_TOKEN = get_token()
