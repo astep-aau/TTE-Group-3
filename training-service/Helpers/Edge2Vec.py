@@ -1,86 +1,76 @@
 import json
+import sys
 import networkx as nx
 from node2vec import Node2Vec
-from gensim.models import KeyedVectors
+from pathlib import Path
 
-DIMENSIONS = 64
-WALK_LENGTH = 15
-NUM_WALKS = 10
-P = 1
-Q = 1
-WORKERS = 4
-InputFile = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/RoadNetwork.json"
-OutputFile = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/edgeEmbeddings.emb"
+# === Function to train Node2Vec model ===
+def modelTraining(GraphForEdges):
+    node2vec = Node2Vec(    # Initialize Node2Vec model
+        GraphForEdges,      # The graph
+        dimensions=5,       # Embedding dimensions
+        walk_length=15,     # Length of each random walk
+        num_walks=10,       # Number of walks per node
+        p=1,                # Return hyperparameter
+        q=1,                # Input hyperparameter
+        workers=4           # Number of parallel workers
+    )
+    model = node2vec.fit(window=10, min_count=1, batch_words=4) # Train the model
+    return model 
 
-# Load vertex data
-print("[INFO] Loading vertex graph...")
-with open(InputFile, "r") as f:
-    vertex_data = json.load(f)
+# === Function to create Graph of the edges ===
+def createGraph():                                                  
+    mGraph = nx.MultiDiGraph()                                          # Initialize a directed multigraph
+    for sourceNode, info in Graph.items():                              # Iterate through each node in the original graph  
+        sourceId = int(sourceNode)                                      # Convert edge ID to integer
+        edges = info.get("outward_edges", [])                           # Get outward edges
+        targets = info.get("outward_vertices", [])                      # Get outward vertices
+        for edge, target in zip(edges, targets):                        # Add edges to the multigraph
+            targetId = int(target)                                     # Convert target node ID to integer
+            mGraph.add_edge(sourceId, targetId, key=edge, edge=edge)   # Add edge with edge ID as key
 
-# Build NEW graph using MultiDiGraph and edge IDs
-G_vertex = nx.MultiDiGraph()
-for src, info in vertex_data.items():
-    src_id = int(src)
-    edge_ids = info.get("outward_edges", [])
-    targets = info.get("outward_vertices", [])
+    edgeGraph = nx.line_graph(mGraph)                               # Create line graph (edges as nodes)   
 
-    if len(edge_ids) != len(targets):
-        print(f"[WARN] Node {src_id} has mismatched lists: {len(edge_ids)} edges, {len(targets)} vertices")
+    edge_to_id = {}                                                           
+    for sourceNode, targetNode, edgeId in edgeGraph.nodes():                    # Iterate through each edge in the line graph
+        edge_data = mGraph.get_edge_data(sourceNode, targetNode, edgeId)        # Get edge data from the original multigraph
+        edge_to_id[(sourceNode, targetNode, edgeId)] = str(edge_data['edge'])   # Map edge tuple to edge ID
 
-    for edge_id, tgt in zip(edge_ids, targets):
-        tgt_id = int(tgt)
-        # Add each road as unique edge with edge_id as key
-        G_vertex.add_edge(src_id, tgt_id, key=edge_id, edge_id=edge_id)
+    edgeGraph = nx.relabel_nodes(edgeGraph, edge_to_id)                         # Relabel nodes in the line graph to use edge IDs
+    return edgeGraph
 
-print(f"[INFO] New graph: {len(G_vertex.nodes())} nodes, {G_vertex.number_of_edges()} edges")
+try:
+    # Initialize embeddings dictionary
+    embeddingsDict = {}    
 
-# Collect all unique edge IDs from dataset
-dataset_edge_ids = {d['edge_id'] for u, v, k, d in G_vertex.edges(keys=True, data=True)}
+    # === File Paths ===
+    OutputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
+    InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json"
+    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+        raise FileNotFoundError(f'"{InputFile}" does not exist. (Missing Dataset)')
+    
+    with open(InputFile, "r") as f:
+        Graph = json.load(f)
 
-# === Step 3: Convert to line graph (edges become nodes) ===
-print("[INFO] Converting to line graph (edges become nodes)...")
-G_edge = nx.line_graph(G_vertex)
-print(f"[INFO] Line graph has {len(G_edge.nodes())} edge-nodes.")
+    if not Graph: #Check if the data is empty, if it is raise an error.
+        raise ValueError('"RoadNetwork.json" is empty or not loaded. (Empty Dataset)')
 
-# === Step 3a: Relabel line graph nodes to use original edge_ids ===
-edge_to_id = {}
-for u, v, k in G_edge.nodes():
-    # Each node in line graph = an edge in original graph (u,v,k)
-    edge_data = G_vertex.get_edge_data(u, v, k)
-    edge_to_id[(u,v,k)] = str(edge_data['edge_id'])
+    GraphEdge = createGraph()               # Create graph of edges
+    if not GraphEdge: #Check if the data is empty, if it is raise an error.
+        raise ValueError('Graph not created correctly. (Empty Edge Graph)')
 
-G_edge = nx.relabel_nodes(G_edge, edge_to_id)
+    TrainedModel = modelTraining(GraphEdge) # Train Node2Vec model
+    if not TrainedModel: #Check if the data is empty, if it is raise an error.
+        raise ValueError('Model training failed. (Empty Trained Model)')
 
-# === Step 4: Train Node2Vec on the line graph ===
-print("[INFO] Training Edge2Vec model...")
-node2vec = Node2Vec(
-    G_edge,
-    dimensions=DIMENSIONS,
-    walk_length=WALK_LENGTH,
-    num_walks=NUM_WALKS,
-    p=P,
-    q=Q,
-    workers=WORKERS
-)
-model = node2vec.fit(window=10, min_count=1, batch_words=4)
+    for edge in GraphEdge.nodes():
+        embeddingsDict[edge] = TrainedModel.wv[edge].tolist()
 
-# Save embeddings
-model.wv.save_word2vec_format(OutputFile, write_header=False)
-emb = KeyedVectors.load_word2vec_format(OutputFile, binary=False, no_header=True)
+    with open(OutputFile, "w") as f:
+        json.dump(embeddingsDict, f, indent=2)
 
-missing_edges = []
-for edge_id in dataset_edge_ids:
-    if str(edge_id) not in emb:
-        missing_edges.append(edge_id)
-
-OutputFileSorted = OutputFile
-
-with open(OutputFile, "r") as f:
-    lines = f.readlines()
-
-lines_sorted = sorted(lines, key=lambda x: int(x.split()[0]))
-
-with open(OutputFileSorted, "w") as f:
-    f.writelines(lines_sorted)
-
-print(f"[INFO] Sorted embeddings saved to {OutputFile}")
+    if not OutputFile.is_file(): #Check if the file can be found, if not raise an error.
+        raise FileNotFoundError(f'"{OutputFile}" does not exist. (Missing Dataset)')
+except Exception as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(1)
