@@ -1,5 +1,7 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using PathfindingService.Domain.Entities;
 
 namespace PathfindingService.Features.CreateRoute;
 
@@ -12,8 +14,10 @@ public class CreateRouteHandler
         _logger = logger;
     }
 
-    public async Task Fiddle()
+    public Task HandleAsync(ProcessPayload payload, CancellationToken cancellationToken = default)
     {
-
+        _logger.LogInformation("Handling route for ProcessId={ProcessId}", payload.ProcessId);
+        // implement save/processing logic here
+        return Task.CompletedTask;
     }
 }
