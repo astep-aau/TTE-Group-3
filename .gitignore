@@ -32,3 +32,4 @@ packages/
 # Temporary files
 *.tmp
 *.temp
+pathfinding-service/Helper/.env
