@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 # === Start Parameters ===
-NumberOfSequences = 500
+NumberOfSequences = 100
 LengthOfSequence = 10
 InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json" 
 
@@ -40,6 +40,7 @@ def random_sequence(graph, lengthOfSequence):
         visited_edges.add(chosen_edge)                      #Add the edge to visited List.
         current_node = str(next_node)                       #Change the current node to the new noce.
 
+    print(sequence, file=sys.stderr, flush=True)
     return sequence #Return the sequence when we are done.
 
 try:
@@ -52,9 +53,10 @@ try:
 
     Routes = []
     for _ in range(NumberOfSequences):
-        LengthOfSequence = random.randint(100, 150)
+        LengthOfSequence = random.randint(10, 10)
         sequence = random_sequence(GraphData, LengthOfSequence)
-        Routes.append(sequence)
+        if sequence:
+            Routes.append(sequence)
 
     print(json.dumps(Routes))
 

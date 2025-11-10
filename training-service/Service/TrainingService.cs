@@ -32,6 +32,7 @@ namespace TrainingService.Services
         {
             //Tager argumenterne til processen, det her er de sekvenser vi lavede før.
             string jsonArg = JsonSerializer.Serialize(edges);
+            Console.WriteLine($"JSON argument: {jsonArg}");
             //Køre vores process, der udregner tiden.
             string output = _pythonRunner.RunPythonScript("Helpers/timeCreation.py", $"\"{jsonArg}\"");
 

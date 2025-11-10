@@ -4,8 +4,8 @@ import random
 from pathlib import Path
 
 # === Start Parameters ===
-Route = json.loads(sys.argv[1])
 InputFile = Path(__file__).parent / "Datasets" / "RoadTraversal.json"
+Route = json.loads(sys.argv[1])
 
 # === Function to calculate edge traversal times ===
 def get_edge_time(route, traversalData):
@@ -31,6 +31,7 @@ def get_edge_time(route, traversalData):
     # Compute the time of each edge with the chosen bucket
     for edgeId in route:                 #Loop over each edge in the route
         edge = str(edgeId)               #Convert the edge to string
+        
         if edge not in traversalData:    #If the edge is not in the data, assign a default time of 0.0 seconds
             times.append(0.0)               
             continue

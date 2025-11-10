@@ -5,11 +5,12 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import matplotlib.pyplot as plt
 import os
+from pathlib import Path
 
 # -----------------------------
 # 1️⃣ Load JSON data
 # -----------------------------
-json_path = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets/TrainingSet.JSON"
+json_path = Path(__file__).parent / "Datasets" / "TrainingSet.JSON" 
 with open(json_path, "r") as f:
     data = json.load(f)
 
@@ -116,7 +117,7 @@ epochs_no_improve = 0
 
 train_losses, val_losses = [], []
 
-output_dir = "/Users/emilskov/RiderProjects/P5 - Time Travel Estimation/training-service/Helpers/Datasets"
+output_dir = Path(__file__).parent / "Datasets"
 os.makedirs(output_dir, exist_ok=True)
 
 for epoch in range(num_epochs):
