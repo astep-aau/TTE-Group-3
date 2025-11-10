@@ -3,12 +3,12 @@ using System.Collections.Generic;
 
 namespace PathfindingService.Domain.Entities.Events;
 
-public class RouteMadeEvent
+public record RouteMadeEvent
 {
-    public Guid CorrelationId { get; set; }
-    public string Origin { get; set; } = string.Empty;
-    public string Destination { get; set; } = string.Empty;
-    public double DistanceKm { get; set; }
+    public Guid CorrelationId { get; init; }
+    public string Origin { get; init; } = string.Empty;
+    public string Destination { get; init; } = string.Empty;
+    public double DistanceKm { get; init; }
     public List<RouteCoordinateDto> Path { get; set; } = new();
 }
 

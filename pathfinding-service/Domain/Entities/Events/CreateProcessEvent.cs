@@ -2,7 +2,7 @@ using System;
 
 namespace PathfindingService.Domain.Entities.Events;
 
-public class CreateProcessEvent
+public record CreateProcessEvent
 {
     public int ProcessId { get; init; }
     public Guid CorrelationId { get; init; }
