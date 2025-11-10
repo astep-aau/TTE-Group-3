@@ -20,7 +20,7 @@ public class CreateProcessHandler
         _emitter = emitter;
     }
     
-    public async Task HandleAsync(CreateProcessCommand command, CancellationToken ct)
+    public virtual async Task HandleAsync(CreateProcessCommand command, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
         

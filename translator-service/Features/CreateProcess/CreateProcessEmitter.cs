@@ -17,7 +17,7 @@ namespace translator_service.Features.CreateProcess
             _bus = bus;
         }
         
-        public async Task EmitCreateProcessEventAsync(CreateProcessEvent processEvent, CancellationToken ct = default)
+        public virtual async Task EmitCreateProcessEventAsync(CreateProcessEvent processEvent, CancellationToken ct = default)
         {
             await _bus.Publish(processEvent, ct);
         }
