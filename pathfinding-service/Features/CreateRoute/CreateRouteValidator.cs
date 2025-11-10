@@ -3,7 +3,6 @@ using System.Globalization;
 using FluentValidation;
 using PathfindingService.Domain.Entities.Events;
 
-#nullable enable
 namespace PathfindingService.Features.CreateRoute;
 
 public class CreateRouteValidator : AbstractValidator<CreateProcessEvent>
@@ -26,7 +25,7 @@ public class CreateRouteValidator : AbstractValidator<CreateProcessEvent>
     private static bool BeLatLon(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) return false;
-        var parts = s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] parts = s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2) return false;
         return double.TryParse(parts[0], NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _)
                && double.TryParse(parts[1], NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
