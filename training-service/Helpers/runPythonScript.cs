@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Helpers;
 
@@ -11,7 +12,7 @@ public class runPythonScript
         
         var psi = new ProcessStartInfo
         {
-            FileName = "python3",
+            FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "python" : "python3",
             Arguments = string.IsNullOrWhiteSpace(args) ? scriptPath : $"{scriptPath} {args}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,

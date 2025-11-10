@@ -2,17 +2,19 @@ import json
 import sys
 import random
 from pathlib import Path
+import numpy as np
 
 # === Start Parameters ===
 InputFile = Path(__file__).parent / "Datasets" / "RoadTraversal.json"
+EmbeddingFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
 Route = json.loads(sys.argv[1])
 
 # === Function to calculate edge traversal times ===
-def get_edge_time(route, traversalData):
+def get_edge_time(route, traversalData, embeddings_dict):
     #Compute the traversal times for each edge in the route based on traversal data.
     times = []                  #List of times for each edge in the route
     bucketsAvailable = set()    #Creates a empty set with all available buckets for the route
-    
+
     for edgeId in route:                                           #This loop over each each in the route
         edge = str(edgeId)                                         #Convert the edge to string as our data is JSON
         if edge in traversalData:                                   #Check if the edge exist in the data
@@ -31,15 +33,29 @@ def get_edge_time(route, traversalData):
     # Compute the time of each edge with the chosen bucket
     for edgeId in route:                 #Loop over each edge in the route
         edge = str(edgeId)               #Convert the edge to string
-        
+          
         if edge not in traversalData:    #If the edge is not in the data, assign a default time of 0.0 seconds
             times.append(0.0)               
             continue
-
+        
         traversals = traversalData[edge].get("traversals", {})  #Get all traversals for that edge
-        if not traversals:                                      #If there is no data asign default 5.0 seconds  
-            times.append(5.0)
-            continue
+        if not traversals:                                     #If there is no data asign default 5.0 seconds 
+            vector = np.array(embeddings_dict[str(edgeId)], dtype=np.float32)
+            closest_edge = []
+            for other_edge_id, other_vector_list in embeddings_dict.items():
+                if other_edge_id == str(edgeId):
+                    continue  # skip itself
+                other_vector = np.array(other_vector_list, dtype=np.float32)
+                distance = np.linalg.norm(vector - other_vector)  # Euclidean distance
+                closest_edge.append((other_edge_id, distance))
+            closest_edge.sort(key=lambda x: x[1])
+            for other_edge_id, _ in closest_edge:
+                traversals = traversalData.get(other_edge_id, {}).get("traversals", {})
+                if traversals:
+                    break
+            if not traversals:
+                times.append(5.0)
+                continue
 
         bucket_keys = sorted(int(k) for k in traversals.keys())                 #Finding all bucket keys for that edge
         closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket)) #Find the key closest to the chosen bucket
@@ -50,6 +66,9 @@ def get_edge_time(route, traversalData):
 try:
     if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
         raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
+    
+    if not EmbeddingFile.is_file(): #Check if the file can be found, if not raise an error.
+        raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Mising Dataset)')
 
     #Opens the file and load data into "traversalData".
     with open(InputFile, "r") as f:
@@ -60,8 +79,15 @@ try:
     
     if not Route: #Check if the data is empty, if it is raise an error.
         raise ValueError('No route data provided. (Empty Route)')
+    
+    # Load embeddings once outside the loop
+    with open(EmbeddingFile, "r") as f:
+        embeddingData = json.load(f)
 
-    times = get_edge_time(Route, traversalData)
+    if not embeddingData: #Check if travalsalData is empty, if it is raise an error.
+        raise ValueError('"edgeEmbeddings.json" is empty or not loaded. (Empty Dataset)')    
+    
+    times = get_edge_time(Route, traversalData, embeddingData)
     print(json.dumps(times))
 except Exception as e:
     print(str(e), file=sys.stderr)
