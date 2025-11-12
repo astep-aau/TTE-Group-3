@@ -1,12 +1,12 @@
 using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 using FluentValidation;
+using FluentResults;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Domain.Entities.Events;
-using RouteEstimationService.Features.CreateRoute;
+using RouteEstimationService.Helper;
 using ValidationResult = FluentValidation.Results.ValidationResult;     // to avoid conflict with System.ComponentModel.DataAnnotations.ValidationResult
 
 namespace RouteEstimationService.Features.CreateRoute;
@@ -31,7 +31,7 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         _logger.LogInformation("Received CreateProcessEvent for CorrelationId={CorrelationId}", evt.CorrelationId);
 
         // validate the incoming event
-        ValidationResult validation = await _validator.ValidateAsync(evt, context.CancellationToken);
+        ValidationResult validation = await _validator.ValidateAsync(evt);
         if (!validation.IsValid)
         {
             _logger.LogWarning("CreateProcessEvent validation failed: {Errors}", validation.Errors);
@@ -40,17 +40,19 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
 
         (string origLat, string origLon) = ParseLatLon(evt.Origin);
         (string destLat, string destLon) = ParseLatLon(evt.Destination);
+        
+        var nn = new NearestNodeFinder();
 
         if (origLat is null || origLon is null)
             _logger.LogWarning("Event Origin could not be parsed as lat,lon: {Origin}", evt.Origin);
 
-        string originNode = (origLat is not null && origLon is not null) ? CreateOsmNode(origLat, origLon) : null;
+        string originNode = (origLat is not null && origLon is not null) ? nn.NearestNode(origLat, origLon) : null;
         _logger.LogInformation("Created origin OSM node: {Node}", originNode);
 
         if (destLat is null || destLon is null)
             _logger.LogWarning("Event Destination could not be parsed as lat,lon: {Destination}", evt.Destination);
 
-        string destinationNode = (destLat is not null && destLon is not null) ? CreateOsmNode(destLat, destLon) : null;
+        string destinationNode = (destLat is not null && destLon is not null) ? nn.NearestNode(destLat, destLon) : null;
         _logger.LogInformation("Created destination OSM node: {Node}", destinationNode);
 
         var payload = new ProcessPayload
@@ -65,37 +67,16 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         };
 
         // TODO: Create Handler and replace 'SaveRouteAsync()' function with handler function
-        // await _handler.SaveRouteAsync(route, context.CancellationToken);
-    }
-
-    private string CreateOsmNode(string lat, string lon)
-    {
-        if (string.IsNullOrWhiteSpace(lat) || string.IsNullOrWhiteSpace(lon)) return null;
-
-        const string pythonPath = "python3";
-        const string scriptPath = "Helper/CreateOsmNode.py";
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = pythonPath,
-            Arguments = $"{scriptPath} {lat} {lon}",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = new Process();
-        process.StartInfo = psi;
-        process.Start();
-        string output = process.StandardOutput.ReadToEnd().Trim();    // output: string
-        string error = process.StandardError.ReadToEnd();      // error: string
-        process.WaitForExit();
-
-        if (string.IsNullOrEmpty(error)) return output;
-
-        _logger.LogInformation("Error creating OSM node: {Error}", error);
-        return null;
+        // Result result = await _handler.HandleAsync(route);
+        //
+        // if (result.IsSuccess)
+        // {
+        //     _logger.LogInformation("Route processed successfully for ProcessId={ProcessId}", payload.ProcessId);
+        // }
+        // else
+        // {
+        //     _logger.LogError("Route processing failed for ProcessId={ProcessId}: {Errors}", payload.ProcessId, string.Join(", ", result.Errors));
+        // }
     }
 
     // Parse lat/lon from evt.Origin and evt.Destination. Expecting format like "lat,lon".

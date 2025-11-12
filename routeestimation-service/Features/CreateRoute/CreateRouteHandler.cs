@@ -1,5 +1,5 @@
-using System.Threading;
 using System.Threading.Tasks;
+using FluentResults;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
 
@@ -14,13 +14,13 @@ public class CreateRouteHandler
         _logger = logger;
     }
 
-    public Task HandleAsync(ProcessPayload payload, CancellationToken cancellationToken = default)
+    public Result HandleAsync(ProcessPayload payload)
     {
         _logger.LogInformation("Handling route for ProcessId={ProcessId}", payload.ProcessId);
         // implement save/processing logic here
         
         
         
-        return Task.CompletedTask;
+        return Result.Ok();
     }
 }
