@@ -61,8 +61,8 @@ test_loader = DataLoader(test_dataset, batch_size=100)
 # 4️⃣ Compute normalization stats on training set
 # -----------------------------
 y_train = torch.stack([yb for _, yb in train_dataset])
-mean_y = y_train.min()
-std_y = y_train.max()
+mean_y = y_train.mean()
+std_y = y_train.std()
 
 def normalize_targets(y):
     return (y - mean_y) / std_y
