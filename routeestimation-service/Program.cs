@@ -3,7 +3,7 @@ using FluentValidation;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PathfindingService.Features.CreateRoute;
+using RouteEstimationService.Features.CreateRoute;
 using RouteEstimationService.Domain.Entities.Events;
 using RouteEstimationService.Features.CreateRoute;
 using Serilog;
