@@ -97,6 +97,7 @@ class LSTMModel(nn.Module):
         out = self.dropout(out)
 
         out = self.fc2(out)  # final output, no ReLU here
+        out = self.relu(out)
         return out
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -154,7 +155,15 @@ for epoch in range(num_epochs):
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         epochs_no_improve = 0
-        torch.save(model.state_dict(), os.path.join(output_dir, "best_model.pt"))
+
+        # Save the best model
+        normalization = {"mean": mean_y, "std": std_y}
+        checkpoint = {
+            "state_dict": model.state_dict(),
+            "normalization": normalization
+        }
+
+        torch.save(checkpoint, os.path.join(output_dir, "best_model.pt"))
     else:
         epochs_no_improve += 1
         if epochs_no_improve >= patience:

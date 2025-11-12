@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 # === Start Parameters ===
-NumberOfSequences = 100
-LengthOfSequence = 10
+NumberOfSequences = 10
+LengthOfSequence = 1
 InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json" 
 
 # === Function to creates routes ===
@@ -53,7 +53,7 @@ try:
 
     Routes = []
     for _ in range(NumberOfSequences):
-        LengthOfSequence = random.randint(10, 10)
+        LengthOfSequence = random.randint(1, 1)
         sequence = random_sequence(GraphData, LengthOfSequence)
         if sequence:
             Routes.append(sequence)
