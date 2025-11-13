@@ -18,5 +18,12 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />  
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Datasets\NodeCoordinates.csv" />
+    <Content Include="Datasets\NodeCoordinates.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
 

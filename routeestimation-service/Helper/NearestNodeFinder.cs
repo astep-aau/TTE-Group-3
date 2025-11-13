@@ -1,87 +1,108 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace RouteEstimationService.Helper;
+
+// For finding the nearest node present in our road network given user inputted coordinates.
 
 public class NearestNodeFinder
 {
     private static Dictionary<string, NodeData> _nodeCache;
     private static bool _isLoaded;
-    private const string RoadNetworkFile = "Datasets/RoadNetwork.json";
+    private const string NodeCoordinatesFile = "Datasets/NodeCoordinates.csv";
 
     private class NodeData
     {
-        [JsonPropertyName("lat")]
         public double Lat { get; init; }
-        [JsonPropertyName("lon")]
         public double Lon { get; init; }
     }
+    
+    // Add inside class NearestNodeFinder in `Helper/NearestNodeFinder.cs`
+    public static bool TryGetCoordinates(string nodeId, out double lat, out double lon)
+    {
+        if (!_isLoaded)
+            LoadNodes();
+    
+        if (_nodeCache != null && _nodeCache.TryGetValue(nodeId, out var node))
+        {
+            lat = node.Lat;
+            lon = node.Lon;
+            return true;
+        }
+    
+        lat = default;
+        lon = default;
+        return false;
+    }
+    
 
     public static string NearestNode(string latStr, string lonStr)
     {
         if (!_isLoaded)
             LoadNodes();
 
-        if (!double.TryParse(latStr, out double lat) || !double.TryParse(lonStr, out double lon))
+        if (!double.TryParse(latStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double lat) ||
+            !double.TryParse(lonStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double lon))
             throw new ArgumentException("Invalid latitude or longitude input.");
 
         string nearestNodeId = null;
         var minDistance = double.MaxValue;
 
-        foreach ((string key, var node) in _nodeCache)
+        foreach (var (key, node) in _nodeCache)
         {
             double dist = Haversine(lat, lon, node.Lat, node.Lon);
-            if (!(dist < minDistance)) continue;
-            minDistance = dist;
-            nearestNodeId = key;
+            if (dist < minDistance)
+            {
+                minDistance = dist;
+                nearestNodeId = key;
+            }
         }
 
-        return nearestNodeId ?? throw new Exception("No nodes found in RoadNetwork.json.");
+        return nearestNodeId ?? throw new Exception("No nodes found in NodeCoordinates.csv.");
     }
-
-    private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     private static void LoadNodes()
     {
         try
         {
-            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, RoadNetworkFile);
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, NodeCoordinatesFile);
             if (!File.Exists(path))
-                throw new FileNotFoundException($"Road network file not found: {path}");
+                throw new FileNotFoundException($"Node coordinates file not found: '{path}'");
 
-            string json = File.ReadAllText(path);
-            var allNodes = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(json, JsonOptions);
-            if (allNodes == null || allNodes.Count == 0)
-                throw new Exception("RoadNetwork.json is empty or invalid.");
+            _nodeCache = new Dictionary<string, NodeData>(StringComparer.Ordinal);
 
-            _nodeCache = new Dictionary<string, NodeData>(allNodes.Count);
-            foreach (var kvp in allNodes)
+            foreach (var rawLine in File.ReadLines(path))
             {
-                if (!kvp.Value.TryGetValue("lat", out object latObj) ||
-                    !kvp.Value.TryGetValue("lon", out object lonObj)) continue;
-                if (latObj is JsonElement latElem && lonObj is JsonElement lonElem &&
-                    latElem.TryGetDouble(out double latVal) && lonElem.TryGetDouble(out double lonVal))
-                {
-                    _nodeCache[kvp.Key] = new NodeData { Lat = latVal, Lon = lonVal };
-                }
-                else if (double.TryParse(latObj?.ToString(), out double latVal2) && double.TryParse(lonObj?.ToString(), out double lonVal2))
-                {
-                    _nodeCache[kvp.Key] = new NodeData { Lat = latVal2, Lon = lonVal2 };
-                }
+                var line = rawLine?.Trim();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                if (line.StartsWith("#")) continue; // comment line
+
+                var parts = line.Split(',');
+                if (parts.Length < 3) continue;
+
+                var id = parts[0].Trim().Trim('"');
+                var latStr = parts[1].Trim().Trim('"');
+                var lonStr = parts[2].Trim().Trim('"');
+
+                if (string.IsNullOrEmpty(id)) continue;
+
+                // Optional header handling: skip if non-numeric coordinates
+                if (!double.TryParse(latStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double lat)) continue;
+                if (!double.TryParse(lonStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double lon)) continue;
+
+                _nodeCache[id] = new NodeData { Lat = lat, Lon = lon };
             }
+
             if (_nodeCache.Count == 0)
-                throw new Exception("No valid nodes with lat/lon found in RoadNetwork.json.");
+                throw new Exception("No valid nodes with lat/lon found in NodeCoordinates.csv.");
+
             _isLoaded = true;
         }
         catch (Exception ex)
         {
-            throw new Exception("Failed to load RoadNetwork.json", ex);
+            throw new Exception("Failed to load NodeCoordinates.csv", ex);
         }
     }
 
@@ -98,7 +119,7 @@ public class NearestNodeFinder
                    Math.Sin(deltaLambda / 2) * Math.Sin(deltaLambda / 2);
         double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
 
-        double d = r * c;
-        return d;
+        return r * c;
     }
 }
+
