@@ -8,6 +8,12 @@ namespace TrainingService.Services
     //Denne service 
     public class TrainingService
     {
+        // Shared HttpClient for the entire service
+        private static readonly HttpClient client = new HttpClient
+        {
+            Timeout = TimeSpan.FromMinutes(10)
+        };
+    
         //Laver en instans af python runneren.
         private readonly runPythonScript _pythonRunner = new runPythonScript();
         //public StatusTracker StatusTracker = new StatusTracker;
@@ -17,9 +23,9 @@ namespace TrainingService.Services
         {
             try
             {
-                int numberOfSequences = 5;
+                int numberOfSequences = 1000;
                 int minLength = 5;
-                int maxLength = 5;
+                int maxLength = 150;
 
                 using var client = new HttpClient();
                 string url = $"http://127.0.0.1:8000/Python/generate-routes/{numberOfSequences}/{minLength}/{maxLength}";
@@ -43,25 +49,29 @@ namespace TrainingService.Services
         }
 
         // Anden del af servicen, den står for at tage alle vores edges og udregne en samlet tid for sekvensen
-        public async Task<double> CreateTimeForRouteAsync(List<int> edges){
+        public async Task<double> CreateTimeForRouteAsync(List<int> edges)
+        {
             if (edges == null || edges.Count == 0)
                 return 0.0;
-            Console.WriteLine($"Calculating time for edges: [{string.Join(", ", edges)}]");
-            using var client = new HttpClient();
-            string url = "http://127.0.0.1:8000/Python/calculate-route-time";
 
-            try{
+            try
+            {
+                string url = "http://127.0.0.1:8000/Python/calculate-route-time";
                 string jsonBody = JsonSerializer.Serialize(edges);
-                var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+                using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
 
                 HttpResponseMessage response = await client.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 string responseJson = await response.Content.ReadAsStringAsync();
+
+                // Deserialize as a list of doubles (or change if API returns an object)
                 var times = JsonSerializer.Deserialize<List<double>>(responseJson);
 
                 return times?.Sum() ?? 0.0;
-            }catch (Exception ex){
+            }
+            catch (Exception ex)
+            {
                 Console.WriteLine($"Error calling time API: {ex.Message}");
                 return 0.0;
             }
@@ -100,37 +110,27 @@ namespace TrainingService.Services
             TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
 
             //Laver alle vores Ruter
+            StatusTracker.Status = "Creating Routes";
             var edgeSequences = await CreateRoute();
+            StatusTracker.Status = $"Created {edgeSequences.Count} routes";
             //For hver rute tjekker vi hvad den totale tid er.
             var sequenceCounter = 1;
-            object counterLock = new object(); // for updating sequenceCounter safely
-            object listLock = new object(); // for adding to trainingSet.Sequences safely
+            foreach (var edges in edgeSequences){
+                StatusTracker.Status = $"Processing sequence {sequenceCounter} of {edgeSequences.Count}";
+                sequenceCounter++;
+                Console.WriteLine($"Processing route: [{string.Join(", ", edges)}]");
 
-            // Create a list of tasks for parallel execution
-            var tasks = edgeSequences.Select(async edges => {
-                // Call your async API function
-                double totalTime = await CreateTimeForRouteAsync(edges);
+                double totalTime = await CreateTimeForRouteAsync(edges); // async call, but sequential
                 List<double[]> replacedEdges = GetEdgeVectors(edges);
 
-                var seq = new Sequence{
+                var seq = new Sequence
+                {
                     Edges = replacedEdges,
                     TotalTime = totalTime
                 };
-
-                // Safely add to shared list
-                lock (listLock){
-                    trainingSet.Sequences.Add(seq);
-                }
-
-                // Safely update status
-                lock (counterLock){
-                    sequenceCounter++;
-                    StatusTracker.Status = $"Estimating Total Time For Routes ({sequenceCounter} / {edgeSequences.Count})";
-                }
-            });
-
-            // Await all tasks to complete
-            await Task.WhenAll(tasks);
+                
+                trainingSet.Sequences.Add(seq);
+            }
             
             var json = JsonSerializer.Serialize(trainingSet);
             File.WriteAllText("Helpers/Datasets/TrainingSet.JSON", json);
