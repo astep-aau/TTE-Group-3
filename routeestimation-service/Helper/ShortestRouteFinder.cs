@@ -17,8 +17,9 @@ public class ShortestRouteFinder
 
     public class RouteResult
     {
-        public List<string> NodeIds { get; set; } = [];
-        public List<int> EdgeIds { get; set; } = [];
+        public List<string> NodeIds { get; init; } = [];
+        public List<int> EdgeIds { get; init; } = [];
+        public List<float> EmbeddedEdges { get; set; } = [];
     }
 
     private class NodeData
