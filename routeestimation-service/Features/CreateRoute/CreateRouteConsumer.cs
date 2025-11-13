@@ -46,13 +46,13 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         if (origLat is null || origLon is null)
             _logger.LogWarning("Event Origin could not be parsed as lat,lon: {Origin}", evt.Origin);
 
-        string originNode = (origLat is not null && origLon is not null) ? nn.NearestNode(origLat, origLon) : null;
+        string originNode = (origLat is not null && origLon is not null) ? NearestNodeFinder.NearestNode(origLat, origLon) : null;
         _logger.LogInformation("Created origin OSM node: {Node}", originNode);
 
         if (destLat is null || destLon is null)
             _logger.LogWarning("Event Destination could not be parsed as lat,lon: {Destination}", evt.Destination);
 
-        string destinationNode = (destLat is not null && destLon is not null) ? nn.NearestNode(destLat, destLon) : null;
+        string destinationNode = (destLat is not null && destLon is not null) ? NearestNodeFinder.NearestNode(destLat, destLon) : null;
         _logger.LogInformation("Created destination OSM node: {Node}", destinationNode);
 
         var payload = new ProcessPayload
@@ -67,7 +67,7 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         };
 
         // TODO: Create Handler and replace 'SaveRouteAsync()' function with handler function
-        // Result result = await _handler.HandleAsync(route);
+        // Result result = _handler.HandleAsync(route);
         //
         // if (result.IsSuccess)
         // {
