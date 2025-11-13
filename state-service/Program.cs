@@ -18,8 +18,7 @@ using Serilog.Sinks.OpenTelemetry;
 using StateService.API;
 using StateService.Features.EstimationRequested;
 using StateService.Features.ProcessFinished;
-using StateService.Features.RouteCalculated;
-using StateService.Features.TimeEstimated;
+using StateService.Features.RouteEstimationCompleted;
 using StateService.Infrastructure.Messaging;
 using StateService.Infrastructure.Observability;
 using StateService.Infrastructure.Persistence;
@@ -82,16 +81,13 @@ public class Program
         builder.Services.AddSingleton(retryPolicy);
 
         builder.Services.AddScoped<IValidator<EstimationRequestedMessage>, EstimationRequestedMessageValidator>();
-        builder.Services.AddScoped<IValidator<RouteCalculatedMessage>, RouteCalculatedMessageValidator>();
-        builder.Services.AddScoped<IValidator<TimeEstimatedMessage>, TimeEstimatedMessageValidator>();
+        builder.Services.AddScoped<IValidator<RouteEstimationCompletedMessage>, RouteEstimationCompletedMessageValidator>();
         builder.Services.AddScoped<IValidator<ProcessFinishedMessage>, ProcessFinishedMessageValidator>();
 
         builder.Services.AddScoped<EstimationRequestedHandler>();
         builder.Services.AddHostedService<EstimationRequestedConsumer>();
-        builder.Services.AddScoped<RouteCalculatedHandler>();
-        builder.Services.AddHostedService<RouteCalculatedConsumer>();
-        builder.Services.AddScoped<TimeEstimatedHandler>();
-        builder.Services.AddHostedService<TimeEstimatedConsumer>();
+        builder.Services.AddScoped<RouteEstimationCompletedHandler>();
+        builder.Services.AddHostedService<RouteEstimationCompletedConsumer>();
         builder.Services.AddScoped<ProcessFinishedHandler>();
         builder.Services.AddHostedService<ProcessFinishedConsumer>();
         builder.Services.AddHostedService<OutboxDispatcher>();
