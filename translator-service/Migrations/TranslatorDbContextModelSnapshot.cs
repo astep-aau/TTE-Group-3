@@ -51,12 +51,6 @@ namespace translatorservice.Migrations
                     b.Property<TimeOnly>("TimeOfTravel")
                         .IsRequired();
 
-                    b.Property<bool>("routeCreated")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("timeEstimated")
-                        .HasColumnType("boolean");
-
                     b.HasKey("Id");
 
                     b.ToTable("CreateProcessRequests");
@@ -104,6 +98,9 @@ namespace translatorservice.Migrations
                     b.Property<double>("DistanceKm")
                         .HasColumnType("double precision");
 
+                    b.Property<double>("TravelTimeMinutes")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Origin")
                         .IsRequired()
                         .HasColumnType("text");
@@ -111,52 +108,6 @@ namespace translatorservice.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Routes");
-                });
-
-            modelBuilder.Entity("translator_service.Domain.Entities.TravelTimeRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CorrelationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsProcessed")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TravelTimeRequests");
-                });
-
-            modelBuilder.Entity("translator_service.Domain.Entities.TravelTimeResult", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CorrelationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDelivered")
-                        .HasColumnType("boolean");
-
-                    b.Property<double>("TravelTimeMinutes")
-                        .HasColumnType("double precision");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TravelTimeResults");
                 });
 
             modelBuilder.Entity("translator_service.Domain.Entities.RouteCoordinate", b =>

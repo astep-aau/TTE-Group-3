@@ -24,9 +24,7 @@ public class CreateProcessValidatorTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
 
         // Act
@@ -48,9 +46,7 @@ public class CreateProcessValidatorTest
             Destination = "",
             CreatedAt = DateTime.UtcNow.AddMinutes(10),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
         
         // Act

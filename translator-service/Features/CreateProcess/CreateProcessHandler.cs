@@ -44,9 +44,7 @@ public class CreateProcessHandler
                     Destination = command.Destination,
                     CreatedAt = command.CreatedAt,
                     ModelVersion = command.ModelVersion,
-                    TimeOfTravel = command.TimeOfTravel,
-                    routeCreated = command.routeCreated,
-                    timeEstimated = command.timeEstimated
+                    TimeOfTravel = command.TimeOfTravel
                 };
                 
                 // Alt andet er logging. This linje er den vigtige

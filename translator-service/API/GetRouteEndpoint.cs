@@ -11,10 +11,15 @@ public class GetRouteEndpoint : ControllerBase
 {
     private readonly GetRouteHandler _handler;
     private readonly ILogger<GetRouteEndpoint> _logger;
+    private readonly RouteDeliveredEmitter _routeDeliveredEmitter;
 
-    public GetRouteEndpoint(GetRouteHandler handler, ILogger<GetRouteEndpoint> logger)
+    public GetRouteEndpoint(
+        GetRouteHandler handler,
+        RouteDeliveredEmitter routeDeliveredEmitter,
+        ILogger<GetRouteEndpoint> logger)
     {
         _handler = handler;
+        _routeDeliveredEmitter = routeDeliveredEmitter;
         _logger = logger;
     }
 
@@ -61,6 +66,8 @@ public class GetRouteEndpoint : ControllerBase
 
                 _logger.LogInformation("Route retrieved successfully. Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
 
+                await _routeDeliveredEmitter.EmitAsync(result.CorrelationId, ct);
+
                 // Map domain entity to DTO that only exposes lat/lon for path entries
                 var dto = new RouteResultDto
                 {
@@ -68,6 +75,7 @@ public class GetRouteEndpoint : ControllerBase
                     Origin = result.Origin,
                     Destination = result.Destination,
                     DistanceKm = result.DistanceKm,
+                    TravelTimeMinutes = result.TravelTimeMinutes,
                     Path = result.Path?.Select(p => new RouteCoordinateDto
                     {
                         Latitude = p.Latitude,

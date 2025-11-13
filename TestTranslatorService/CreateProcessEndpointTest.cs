@@ -49,9 +49,7 @@ public class CreateProcessEndpointTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
 
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<CreateProcessCommand>(), It.IsAny<CancellationToken>()))
@@ -78,9 +76,7 @@ public class CreateProcessEndpointTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
         
         // Act
@@ -105,9 +101,7 @@ public class CreateProcessEndpointTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
         
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<CreateProcessCommand>(), It.IsAny<CancellationToken>()))
@@ -133,9 +127,7 @@ public class CreateProcessEndpointTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
         
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<CreateProcessCommand>(), It.IsAny<CancellationToken>()))

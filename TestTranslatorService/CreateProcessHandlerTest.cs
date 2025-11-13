@@ -35,9 +35,7 @@ public class CreateProcessHandlerTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
         
         var handler = new CreateProcessHandler(
@@ -57,9 +55,7 @@ public class CreateProcessHandlerTest
                 req.Destination == command.Destination &&
                 req.CreatedAt == command.CreatedAt &&
                 req.ModelVersion == command.ModelVersion &&
-                req.TimeOfTravel == command.TimeOfTravel &&
-                req.routeCreated == command.routeCreated &&
-                req.timeEstimated == command.timeEstimated
+                req.TimeOfTravel == command.TimeOfTravel
                 )),
             Times.Once);
 
@@ -89,9 +85,7 @@ public class CreateProcessHandlerTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
         
         var handler = new CreateProcessHandler(
@@ -118,9 +112,7 @@ public class CreateProcessHandlerTest
             Destination = "987.654321,123.456789",
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
             ModelVersion = "1.0",
-            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now),
-            routeCreated = false,
-            timeEstimated = false
+            TimeOfTravel = TimeOnly.FromDateTime(DateTime.Now)
         };
         
         var handler = new CreateProcessHandler(
