@@ -12,6 +12,9 @@ sys.path.append(str(helpers_path))
 from predictTime import predict_total_time  # your helper function
 from dataCreation import GenerateRoutes  # your helper function
 from timeCreation import EdgeTraversalTime  # your helper function
+from getEdgeToVectors import GetEdgeToVectors  # your helper function
+from Edge2Vec import VectorEmbedding  # your helper function
+from LSTMTraining import TrainLSTMModel  # your helper function
 
 app = FastAPI(title="TTE Python API Controller")
 
@@ -45,3 +48,17 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
 @app.post("/Python/calculate-route-time")
 def calculateRouteTime(route: List[int]):
     return EdgeTraversalTime(route)
+
+@app.post("/Python/vectors")
+def getEdgeToVectors(edges: List[int]):
+    return GetEdgeToVectors(edges)
+
+@app.post("/Python/vector-embedding")
+def vectorEmbedding():
+    VectorEmbedding()
+    return {"status": "Edge embeddings generated successfully."}
+
+@app.post("/Python/train-lstm")
+def trainLSTMModel():
+    TrainLSTMModel()
+    return {"status": "LSTM model trained successfully."}

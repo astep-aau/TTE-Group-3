@@ -11,19 +11,16 @@ namespace TrainingService.Services
         // Shared HttpClient for the entire service
         private static readonly HttpClient client = new HttpClient
         {
-            Timeout = TimeSpan.FromMinutes(10)
+            Timeout = TimeSpan.FromMinutes(1000)
         };
-    
-        //Laver en instans af python runneren.
-        private readonly runPythonScript _pythonRunner = new runPythonScript();
-        //public StatusTracker StatusTracker = new StatusTracker;
+
         
         //Første del af servicen, den står for at lave en rute/sekvens af veje.
         public async Task<List<List<int>>> CreateRoute()
         {
             try
             {
-                int numberOfSequences = 1000;
+                int numberOfSequences = 100;
                 int minLength = 5;
                 int maxLength = 150;
 
@@ -77,18 +74,26 @@ namespace TrainingService.Services
             }
         }
 
-        public List<double[]> GetEdgeVectors(List<int> edges)
+        public async Task<List<double[]>> GetEdgeVectors(List<int> edges)
         {
-            string jsonArg = JsonSerializer.Serialize(edges);
-            string output = _pythonRunner.RunPythonScript("Helpers/getEdgeToVectors.py", $"\"{jsonArg}\"");
-
-            if (string.IsNullOrWhiteSpace(output))
+            if (edges == null || edges.Count == 0)
                 return new List<double[]>();
 
             try
             {
-                var vectors = JsonSerializer.Deserialize<List<List<double>>>(output);
-                return vectors?.Select(v => v.ToArray()).ToList() ?? new List<double[]>();
+                string url = "http://127.0.0.1:8000/Python/vectors";
+                string jsonBody = JsonSerializer.Serialize(edges);
+                using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+
+                HttpResponseMessage response = await client.PostAsync(url, content);
+                response.EnsureSuccessStatusCode();
+
+                string responseJson = await response.Content.ReadAsStringAsync();
+
+                // Deserialize as a list of doubles (or change if API returns an object)
+                var vector = JsonSerializer.Deserialize<List<double[]>>(responseJson);
+
+                return vector ?? new List<double[]>();
             }
             catch (JsonException ex)
             {
@@ -97,10 +102,18 @@ namespace TrainingService.Services
             }
         }
 
-        public void LstmTraining()
+        public async Task LstmTraining()
         {
             StatusTracker.Status = "LSTM Training";
-            var output = _pythonRunner.RunPythonScript("Helpers/LSTMTraining.py");
+            using var client = new HttpClient();
+            string url = "http://127.0.0.1:8000/Python/train-lstm";
+
+            // POST request with no body
+            HttpResponseMessage response = await client.PostAsync(url, null);
+            response.EnsureSuccessStatusCode();
+
+            string responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine(responseContent);
         }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
@@ -121,7 +134,7 @@ namespace TrainingService.Services
                 Console.WriteLine($"Processing route: [{string.Join(", ", edges)}]");
 
                 double totalTime = await CreateTimeForRouteAsync(edges); // async call, but sequential
-                List<double[]> replacedEdges = GetEdgeVectors(edges);
+                List<double[]> replacedEdges = await GetEdgeVectors(edges);
 
                 var seq = new Sequence
                 {
@@ -135,7 +148,7 @@ namespace TrainingService.Services
             var json = JsonSerializer.Serialize(trainingSet);
             File.WriteAllText("Helpers/Datasets/TrainingSet.JSON", json);
 
-            LstmTraining();
+            await LstmTraining();
             
             StatusTracker.Status = "Idle";
             return "Training Done";

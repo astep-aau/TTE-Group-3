@@ -6,8 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // ✅ Register your TrainingService
-builder.Services.AddSingleton<TrainingService.Services.TrainingService>();
-builder.Services.AddSingleton<VectorEmbeddingService.Services.VectorEmbeddingService>();
+builder.Services.AddSingleton<TrainingService>();
+
 
 // Add Swagger if needed
 builder.Services.AddEndpointsApiExplorer();
