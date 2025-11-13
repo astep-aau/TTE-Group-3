@@ -4,15 +4,14 @@ import sys
 from pathlib import Path
 
 # === Start Parameters ===
-NumberOfSequences = 10
-LengthOfSequence = 1
+NumberOfSequences = 100
+LengthOfSequence = 100
 InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json" 
 
 # === Function to creates routes ===
 def random_sequence(graph, lengthOfSequence):
     if not graph: #Check if the data is empty, if it is raise an error.
         raise ValueError('"RoadNetwork.json" is empty or not loaded. (Empty Dataset)')
-
     current_node = random.choice(list(graph.keys()))    #Find the current node, takes a random from the dataset.
     sequence = []                                       #List of edges that form the route.
     visited_edges = set()                               #List of visited edges.
@@ -53,7 +52,7 @@ try:
 
     Routes = []
     for _ in range(NumberOfSequences):
-        LengthOfSequence = random.randint(1, 1)
+        LengthOfSequence = random.randint(5, 5)
         sequence = random_sequence(GraphData, LengthOfSequence)
         if sequence:
             Routes.append(sequence)
