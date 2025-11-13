@@ -87,7 +87,7 @@ public class NearestNodeFinder
 
     private static double Haversine(double lat1, double lon1, double lat2, double lon2)
     {
-        const double r = 6371e3; // metres
+        const double r = 6371e3; // Earth's radius in meters
         double phi1 = lat1 * Math.PI / 180;
         double phi2 = lat2 * Math.PI / 180;
         double deltaPhi = (lat2 - lat1) * Math.PI / 180;
