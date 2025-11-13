@@ -2,11 +2,11 @@ namespace trainingService.Domain;
 
 public class Sequence
 {
-    public List<double[]> Edges { get; set; }
+    public List<double[]> Edges { get; set; } = new List<double[]>();
     public double TotalTime { get; set; }
 }
 
 public class TrainingSet
 {
-    public List<Sequence> Sequences { get; set; }
+    public List<Sequence> Sequences { get; set; } = new List<Sequence>();
 }
