@@ -1,6 +1,6 @@
 # PythonController.py
 from fastapi import FastAPI
-from pydantic import BaseModel
+from typing import List
 from pathlib import Path
 import sys
 
@@ -12,10 +12,6 @@ from predictTime import predict_total_time  # your helper function
 
 app = FastAPI(title="TTE Python API Controller")
 
-# Define the input model
-class Route(BaseModel):
-    edges: list[list[float]]  # a list of edge vectors
-
 @app.post("/Python/predict-time")
-def predict_time_endpoint(route: Route):
-    return {"predicted_time": predict_total_time(route.edges)}
+def predict_time_endpoint(edges: List[List[float]]):
+    return {"predicted_time": predict_total_time(edges)}
