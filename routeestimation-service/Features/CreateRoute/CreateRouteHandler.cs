@@ -14,7 +14,7 @@ public class CreateRouteHandler
         _logger = logger;
     }
 
-    public Result<ShortestRouteFinder.RouteResult> HandleAsync(ProcessPayload payload)
+    public Result<RouteResult> HandleAsync(ProcessPayload payload)
     {
         _logger.LogInformation("Handling route for ProcessId={ProcessId}", payload.ProcessId);
 
@@ -35,8 +35,9 @@ public class CreateRouteHandler
             _logger.LogWarning("Empty route path for ProcessId={ProcessId}", payload.ProcessId);
             return Result.Fail("Empty route path");
         }
-        
-        _logger.LogInformation("Route found for ProcessId={ProcessId}", payload.ProcessId);
+
+        _logger.LogInformation("Route with RouteID={RouteId} found for ProcessId={ProcessId}",
+            routeResult.Value.RouteId, payload.ProcessId);
         return Result.Ok(routeResult.Value);
     }
 }

@@ -9,6 +9,7 @@ using FluentValidation;
 using FluentResults;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Domain.Entities.Events;
+using RouteEstimationService.Features.EstimateTime;
 using RouteEstimationService.Helper;
 using ValidationResult = FluentValidation.Results.ValidationResult;     // to avoid conflict with System.ComponentModel.DataAnnotations.ValidationResult
 
@@ -80,40 +81,13 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
                 string.Join(", ", result.Errors));
             return;
         }
-        var route = result.Value;
         _logger.LogInformation(
-            "Route processed successfully for ProcessId={ProcessId} and created the route:\n{Route}",
-            payload.ProcessId, route);
-
-        // Call training service to vector embed edges
-        _logger.LogInformation("Vector embedding the edges for ProcessId={ProcessId}", payload.ProcessId);
-        var embeddedEdges = await new HttpClient().PostAsync(
-            "http://127.0.0.1:8000/Python/predict-time",
-            new StringContent(JsonSerializer.Serialize(route.EdgeIds),
-                Encoding.UTF8,
-                "application/json"));
-
-        if (!embeddedEdges.IsSuccessStatusCode)
-        {
-            _logger.LogError("Failed to vector embed edges for ProcessId={ProcessId}. StatusCode: {StatusCode}",
-                payload.ProcessId, embeddedEdges.StatusCode);
-            return;
-        }
-        string responseContent = await embeddedEdges.Content.ReadAsStringAsync();
-        _logger.LogInformation("Successfully vector embedded edges for ProcessId={ProcessId}: {Response}",
-            payload.ProcessId, responseContent);
-
-        // Add embeddedEdges to route
-        try
-        {
-            var embeddedEdgesObj = JsonSerializer.Deserialize<object>(responseContent);
-            route.GetType().GetProperty("EmbeddedEdges")?.SetValue(route, embeddedEdgesObj);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError("Failed to add embeddedEdges to route for ProcessId={ProcessId}: {Error}",
-                payload.ProcessId, ex.Message);
-        }
+            "Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}", result.Value.RouteId,
+            payload.ProcessId, result.Value);
+        
+        // Handle the time estimation
+        _logger.LogInformation("Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, result.Value.RouteId);
+        var timeEstimationResult = EstimateTimeHandler.EstimateTime(result.Value);
     }
 
     // Parse lat/lon from origin and destination. Expecting format "lat,lon".

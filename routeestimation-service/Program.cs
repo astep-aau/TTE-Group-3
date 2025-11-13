@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RouteEstimationService.Features.CreateRoute;
 using RouteEstimationService.Domain.Entities.Events;
-using RouteEstimationService.Features.CreateRoute;
 using Serilog;
 
 // allow running the OSM extractor directly via: dotnet run -- extract <pbf> <json> <csv>
