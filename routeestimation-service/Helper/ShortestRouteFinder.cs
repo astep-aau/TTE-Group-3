@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Linq;
 using FluentResults;
+using RouteEstimationService.Domain.Entities;
 
 namespace RouteEstimationService.Helper;
 
@@ -14,13 +15,6 @@ public class ShortestRouteFinder
     private static bool _isLoaded;
     private const string RoadNetworkFile = "Datasets/RoadNetwork.json";
     private const string EdgeFile = "Datasets/edge_traversals_processed.json";
-
-    public class RouteResult
-    {
-        public List<string> NodeIds { get; init; } = [];
-        public List<int> EdgeIds { get; init; } = [];
-        public List<float> EmbeddedEdges { get; set; } = [];
-    }
 
     private class NodeData
     {
