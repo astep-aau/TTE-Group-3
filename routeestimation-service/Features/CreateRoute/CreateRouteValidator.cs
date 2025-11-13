@@ -3,7 +3,7 @@ using System.Globalization;
 using FluentValidation;
 using RouteEstimationService.Domain.Entities.Events;
 
-namespace PathfindingService.Features.CreateRoute;
+namespace RouteEstimationService.Features.CreateRoute;
 
 public class CreateRouteValidator : AbstractValidator<CreateProcessEvent>
 {
