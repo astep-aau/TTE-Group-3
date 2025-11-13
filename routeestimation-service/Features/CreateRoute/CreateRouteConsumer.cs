@@ -66,17 +66,16 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
             ModelVersion = evt.ModelVersion
         };
 
-        // TODO: Create Handler and replace 'SaveRouteAsync()' function with handler function
-        // Result result = _handler.HandleAsync(route);
-        //
-        // if (result.IsSuccess)
-        // {
-        //     _logger.LogInformation("Route processed successfully for ProcessId={ProcessId}", payload.ProcessId);
-        // }
-        // else
-        // {
-        //     _logger.LogError("Route processing failed for ProcessId={ProcessId}: {Errors}", payload.ProcessId, string.Join(", ", result.Errors));
-        // }
+        var result = _handler.HandleAsync(payload);
+        
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Route processed successfully for ProcessId={ProcessId} and created the route:\n{Route}", payload.ProcessId, result.Value);
+        }
+        else
+        {
+            _logger.LogError("Route processing failed for ProcessId={ProcessId}: {Errors}", payload.ProcessId, string.Join(", ", result.Errors));
+        }
     }
 
     // Parse lat/lon from evt.Origin and evt.Destination. Expecting format like "lat,lon".
