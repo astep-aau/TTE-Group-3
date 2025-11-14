@@ -14,8 +14,8 @@ public class ShortestRouteFinder
     private static Dictionary<string, NodeData> _nodeCache;
     private static Dictionary<int, EdgeData> _edgeCache;
     private static bool _isLoaded;
-    private const string RoadNetworkFile = "Datasets/RoadNetwork.json"; // Upload nye filer
-    private const string EdgeFile = "Datasets/edge_traversals_processed.json"; // Upload nye filer
+    private const string RoadNetworkFile = "Datasets/vertex_graph.json"; // Upload nye filer
+    private const string EdgeFile = "Datasets/edge_traversals.json"; // Upload nye filer
 
     private class NodeData
     {

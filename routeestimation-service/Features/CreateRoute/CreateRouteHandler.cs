@@ -68,7 +68,7 @@ public class CreateRouteHandler
         }
         _logger.LogInformation(
             "[RouteHandler] Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}",
-            routeResult.Value.RouteId, payload.ProcessId, routeResult.Value);
+            payload.ProcessId, routeResult.Value.RouteId, routeResult.Value);
         
         // Handle the time estimation
         _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
@@ -88,7 +88,7 @@ public class CreateRouteHandler
             "[RouteHandler] Mapping Node IDs to coordinates for ProcessId={ProcessId}, RouteId={RouteId}",
             payload.ProcessId, routeResult.Value.RouteId);
         
-        routeResult.Value.Path = NodeIDToCoordinates.Map(routeResult.Value.NodeIds)
+        routeResult.Value.Path = NodeIdToCoordinates.Map(routeResult.Value.NodeIds)
             .ConvertAll(coord => new RouteCoordinate
             {
                 Latitude = coord.Lat,

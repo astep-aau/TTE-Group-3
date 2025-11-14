@@ -82,9 +82,10 @@ public class NearestNodeFinder
 
             foreach (string rawLine in File.ReadLines(path))
             {
+                if (rawLine == "node_id,longitude,latitude") continue;
                 string line = rawLine?.Trim();
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                if (line.StartsWith("#")) continue; 
+                if ("#".StartsWith(line)) continue; 
 
                 string[] parts = line.Split(',');
                 if (parts.Length < 3) continue;
