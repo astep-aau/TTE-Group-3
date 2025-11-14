@@ -23,6 +23,10 @@
     <Content Include="Datasets\NodeCoordinates.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Remove="Datasets\vertex.csv" />
+    <Content Include="Datasets\vertex.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

@@ -11,7 +11,7 @@ public class NearestNodeFinder
 {
     private static Dictionary<string, NodeData> _nodeCache;
     private static bool _isLoaded;
-    private const string NodeCoordinatesFile = "Datasets/NodeCoordinates.csv";
+    private const string NodeCoordinatesFile = "Datasets/vertex.csv";
 
     private class NodeData
     {
@@ -83,8 +83,8 @@ public class NearestNodeFinder
                 if (parts.Length < 3) continue;
 
                 var id = parts[0].Trim().Trim('"');
-                var latStr = parts[1].Trim().Trim('"');
-                var lonStr = parts[2].Trim().Trim('"');
+                var lonStr = parts[1].Trim().Trim('"'); //File format is ID, Lon, Lat
+                var latStr = parts[2].Trim().Trim('"');
 
                 if (string.IsNullOrEmpty(id)) continue;
 
