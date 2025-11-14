@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MassTransit;
@@ -16,6 +17,7 @@ public class CreateRouteEmitter
         
     public async Task EmitCreateProcessEventAsync(RouteMadeEvent routeMadeEvent, CancellationToken ct = default)
     {
+        Console.WriteLine("[Emitter] Emitting RouteMadeEvent for CorrelationId={0}", routeMadeEvent.CorrelationId);
         await _bus.Publish(routeMadeEvent, ct);
     }
 }
