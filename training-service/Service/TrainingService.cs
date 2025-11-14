@@ -20,9 +20,9 @@ namespace TrainingService.Services
         {
             try
             {
-                int numberOfSequences = 100;
+                int numberOfSequences = 10;
                 int minLength = 5;
-                int maxLength = 150;
+                int maxLength = 15;
 
                 using var client = new HttpClient();
                 string url = $"http://127.0.0.1:8000/Python/generate-routes/{numberOfSequences}/{minLength}/{maxLength}";
