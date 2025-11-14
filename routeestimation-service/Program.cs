@@ -32,15 +32,15 @@ try
             services.AddScoped<CreateRouteHandler>();
             services.AddScoped<IValidator<CreateProcessEvent>, CreateRouteValidator>();
 
-            // services.AddMassTransit(x =>
-            // {
-            //     x.AddConsumer<CreateRouteConsumer>();
-            //     x.UsingRabbitMq((ctx, cfg) =>
-            //     {
-            //         cfg.Host("localhost", "/", h => { h.Username("guest"); h.Password("guest"); });
-            //         cfg.ReceiveEndpoint("routeestimation-create-route", e => e.ConfigureConsumer<CreateRouteConsumer>(ctx));
-            //     });
-            // });
+            services.AddMassTransit(x =>
+            {
+                x.AddConsumer<CreateRouteConsumer>();
+                x.UsingRabbitMq((ctx, cfg) =>
+                {
+                    cfg.Host("localhost", "/", h => { h.Username("guest"); h.Password("guest"); });
+                    cfg.ReceiveEndpoint("estimation-requested", e => e.ConfigureConsumer<CreateRouteConsumer>(ctx));
+                });
+            });
             services.AddTransient<CreateRouteConsumer>();
         });
     using var host = hostbuilder.Build();

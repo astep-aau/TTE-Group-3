@@ -2,7 +2,6 @@ using System;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Collections.Generic;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
@@ -18,9 +17,9 @@ public class EstimateTimeHandler
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly ILogger<CreateRouteConsumer> _logger;
+    private readonly ILogger<CreateRouteHandler> _logger;
 
-    public EstimateTimeHandler(ILogger<CreateRouteConsumer> logger)
+    public EstimateTimeHandler(ILogger<CreateRouteHandler> logger)
     {
         _logger = logger;
     }
@@ -67,22 +66,6 @@ public class EstimateTimeHandler
         }
         _logger.LogInformation("[EstimateTimeHandler] Successfully received embedded edges for RouteId={RouteId}",
             route.RouteId);
-
-        // Parse and ddd embeddedEdges to route
-        List<List<double>> parsed;
-        try
-        {
-            parsed = JsonSerializer.Deserialize<List<List<double>>>(embeddedEdges, _jsonOptions)
-                     ?? JsonSerializer.Deserialize<List<List<double>>>(JsonSerializer.Deserialize<string>(embeddedEdges)!, _jsonOptions)
-                     ?? throw new JsonException("Unable to parse embeddings");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[EstimateTimeHandler] Failed to parse embedded edges JSON");
-            return Result.Fail<RouteResult>($"Failed to parse embedded edges JSON: {ex.Message}");
-        }
-        
-        route.EmbeddedEdges = parsed;
         
         // Post embedded edges to time prediction service
         _logger.LogInformation("[EstimateTimeHandler] Posting embedded edges to time prediction service for RouteId={RouteId}",
