@@ -12,8 +12,8 @@ using translator_service;
 namespace translatorservice.Migrations
 {
     [DbContext(typeof(TranslatorDbContext))]
-    [Migration("20251017091434_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251113131845_AddedCreateProcess")]
+    partial class AddedCreateProcess
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,40 @@ namespace translatorservice.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("translator_service.Domain.Entities.CreateProcessRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ModelVersion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<TimeOnly>("TimeOfTravel")
+                        .HasColumnType("time without time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CreateProcessRequests");
+                });
 
             modelBuilder.Entity("translator_service.Domain.Entities.RouteCoordinate", b =>
                 {
@@ -67,12 +101,12 @@ namespace translatorservice.Migrations
                     b.Property<double>("DistanceKm")
                         .HasColumnType("double precision");
 
-                    b.Property<double>("TravelTimeMinutes")
-                        .HasColumnType("double precision");
-
                     b.Property<string>("Origin")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<double>("TravelTimeMinutes")
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 

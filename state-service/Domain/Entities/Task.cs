@@ -6,6 +6,7 @@ namespace StateService.Domain.Entities
     public class Task
     {
         public int Pid { get; set; }
+        public string? CorrelationId { get; set; }
         public TaskState CurrentState { get; set; } = TaskState.New;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

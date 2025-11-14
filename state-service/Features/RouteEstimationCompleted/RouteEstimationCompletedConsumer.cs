@@ -1,26 +1,30 @@
-using Microsoft.Extensions.Logging;
-using RabbitMQ.Client.Events;
-using System.Text;
-using System.Text.Json;
-using StateService.Infrastructure.Messaging;
-using RabbitMQ.Client;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+using StateService.Infrastructure.Messaging;
 using StateService.Infrastructure.Observability;
 using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
 
-namespace StateService.Features.TimeEstimated
+namespace StateService.Features.RouteEstimationCompleted
 {
-    public class TimeEstimatedConsumer : BackgroundService
+    public class RouteEstimationCompletedConsumer : BackgroundService
     {
         private readonly IRabbitMqConnection _connection;
         private readonly IServiceProvider _sp;
-        private readonly ILogger<TimeEstimatedConsumer> _logger;
+        private readonly ILogger<RouteEstimationCompletedConsumer> _logger;
         private IModel? _channel;
-        private const string QueueName = "time-estimated";
+        private const string QueueName = "RouteEstimationCompleted";
 
-        public TimeEstimatedConsumer(IRabbitMqConnection connection, IServiceProvider sp, ILogger<TimeEstimatedConsumer> logger)
+        public RouteEstimationCompletedConsumer(IRabbitMqConnection connection, IServiceProvider sp, ILogger<RouteEstimationCompletedConsumer> logger)
         {
             _connection = connection;
             _sp = sp;
@@ -31,43 +35,44 @@ namespace StateService.Features.TimeEstimated
         {
             _channel = _connection.CreateChannel();
             _channel.BasicQos(0, 10, false);
-            
+
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.Received += async (_, ea) =>
             {
                 var sw = Stopwatch.StartNew();
-                using var activity = Infrastructure.Observability.ActivitySourceHolder.Source.StartActivity("consume.time-estimated");
+                using var activity = ActivitySourceHolder.Source.StartActivity("consume.route-estimation-completed");
                 try
                 {
                     var json = Encoding.UTF8.GetString(ea.Body.ToArray());
-                    var msg = JsonSerializer.Deserialize<TimeEstimatedMessage>(json);
+                    var msg = JsonSerializer.Deserialize<RouteEstimationCompletedMessage>(json);
                     if (msg is null)
                     {
                         _logger.LogWarning("Null message received on {Queue}", QueueName);
                         _channel.BasicAck(ea.DeliveryTag, false);
                         return;
                     }
-                    activity?.AddTag("pid", msg.Pid);
+
                     activity?.AddTag("correlationId", msg.CorrelationId);
 
                     using var scope = _sp.CreateScope();
-                    var validator = scope.ServiceProvider.GetRequiredService<IValidator<TimeEstimatedMessage>>();
+                    var validator = scope.ServiceProvider.GetRequiredService<IValidator<RouteEstimationCompletedMessage>>();
                     var validationResult = await validator.ValidateAsync(msg, stoppingToken);
                     if (!validationResult.IsValid)
                     {
-                        _logger.LogWarning("Validation failed pid={Pid} errors={Errors}", msg.Pid, string.Join(";", validationResult.Errors.Select(e => e.ErrorMessage)));
+                        _logger.LogWarning("Validation failed correlationId={CorrelationId} errors={Errors}", msg.CorrelationId, string.Join(";", validationResult.Errors.Select(e => e.ErrorMessage)));
                         _channel.BasicAck(ea.DeliveryTag, false);
                         MetricsRegistry.MessagesFailed.Add(1);
                         return;
                     }
-                    var handler = scope.ServiceProvider.GetRequiredService<TimeEstimatedHandler>();
+
+                    var handler = scope.ServiceProvider.GetRequiredService<RouteEstimationCompletedHandler>();
                     await handler.HandleAsync(msg, stoppingToken);
                     _channel.BasicAck(ea.DeliveryTag, false);
                     MetricsRegistry.MessagesConsumed.Add(1);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error handling message on {Queue}");
+                    _logger.LogError(ex, "Error handling message on {Queue}", QueueName);
                     _channel.BasicNack(ea.DeliveryTag, false, true);
                     MetricsRegistry.MessagesFailed.Add(1);
                 }
@@ -90,3 +95,4 @@ namespace StateService.Features.TimeEstimated
         }
     }
 }
+

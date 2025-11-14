@@ -1,18 +1,20 @@
-using translator_service.Domain.Entities;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 using translator_service.Domain.Events;
+using translator_service.Domain.Entities;
 
 namespace translator_service.Features.GetRoute;
 
 public class GetRouteConsumer : IConsumer<RouteMadeEvent>
 {
-    private readonly GetRouteHandler _handler;
+    private readonly GetRouteHandler _routeHandler;
     private readonly ILogger<GetRouteConsumer> _logger;
 
-    public GetRouteConsumer(GetRouteHandler handler, ILogger<GetRouteConsumer> logger)
+    public GetRouteConsumer(
+        GetRouteHandler routeHandler,
+        ILogger<GetRouteConsumer> logger)
     {
-        _handler = handler;
+        _routeHandler = routeHandler;
         _logger = logger;
     }
 
@@ -20,7 +22,9 @@ public class GetRouteConsumer : IConsumer<RouteMadeEvent>
     {
         var evt = context.Message;
 
-        _logger.LogInformation("Received RouteMadeEvent for CorrelationId={CorrelationId}", evt.CorrelationId);
+        _logger.LogInformation(
+            "Received RouteMadeEvent for CorrelationId={CorrelationId} including travel time",
+            evt.CorrelationId);
 
         var route = new RouteResult
         {
@@ -28,6 +32,7 @@ public class GetRouteConsumer : IConsumer<RouteMadeEvent>
             Origin = evt.Origin,
             Destination = evt.Destination,
             DistanceKm = evt.DistanceKm,
+            TravelTimeMinutes = evt.TravelTimeMinutes,
             Path = evt.Path.Select(p => new RouteCoordinate
             {
                 Latitude = p.Latitude,
@@ -35,6 +40,6 @@ public class GetRouteConsumer : IConsumer<RouteMadeEvent>
             }).ToList()
         };
 
-        await _handler.SaveRouteAsync(route, context.CancellationToken);
+        await _routeHandler.SaveRouteAsync(route, context.CancellationToken);
     }
 }
