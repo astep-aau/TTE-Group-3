@@ -46,6 +46,7 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
             _logger.LogWarning("[Consumer] CreateProcessEvent validation failed: {Errors}", validation.Errors);
             return; // Drop/ack the message - or move to dead-letter depending on your policy
         }
+        _logger.LogInformation("[Consumer] CreateProcessEvent validation succeeded for CorrelationId={CorrelationId}", evt.CorrelationId);
         
         
         var payload = new ProcessPayload
