@@ -19,7 +19,7 @@ def modelTraining(GraphForEdges):
     return model 
 
 # === Function to create Graph of the edges ===
-def createGraph():                                                  
+def createGraph(Graph):                                                  
     mGraph = nx.MultiDiGraph()                                          # Initialize a directed multigraph
     for sourceNode, info in Graph.items():                              # Iterate through each node in the original graph  
         sourceId = int(sourceNode)                                      # Convert edge ID to integer
@@ -39,38 +39,39 @@ def createGraph():
     edgeGraph = nx.relabel_nodes(edgeGraph, edge_to_id)                         # Relabel nodes in the line graph to use edge IDs
     return edgeGraph
 
-try:
-    # Initialize embeddings dictionary
-    embeddingsDict = {}    
+def VectorEmbedding():
+    try:
+        # Initialize embeddings dictionary
+        embeddingsDict = {}    
 
-    # === File Paths ===
-    OutputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
-    InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json"
-    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
-        raise FileNotFoundError(f'"{InputFile}" does not exist. (Missing Dataset)')
+        # === File Paths ===
+        OutputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
+        InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json"
+        if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+            raise FileNotFoundError(f'"{InputFile}" does not exist. (Missing Dataset)')
     
-    with open(InputFile, "r") as f:
-        Graph = json.load(f)
+        with open(InputFile, "r") as f:
+            Graph = json.load(f)
 
-    if not Graph: #Check if the data is empty, if it is raise an error.
-        raise ValueError('"RoadNetwork.json" is empty or not loaded. (Empty Dataset)')
+        if not Graph: #Check if the data is empty, if it is raise an error.
+            raise ValueError('"RoadNetwork.json" is empty or not loaded. (Empty Dataset)')
 
-    GraphEdge = createGraph()               # Create graph of edges
-    if not GraphEdge: #Check if the data is empty, if it is raise an error.
-        raise ValueError('Graph not created correctly. (Empty Edge Graph)')
+        GraphEdge = createGraph(Graph)               # Create graph of edges
+        if not GraphEdge: #Check if the data is empty, if it is raise an error.
+            raise ValueError('Graph not created correctly. (Empty Edge Graph)')
 
-    TrainedModel = modelTraining(GraphEdge) # Train Node2Vec model
-    if not TrainedModel: #Check if the data is empty, if it is raise an error.
-        raise ValueError('Model training failed. (Empty Trained Model)')
+        TrainedModel = modelTraining(GraphEdge) # Train Node2Vec model
+        if not TrainedModel: #Check if the data is empty, if it is raise an error.
+            raise ValueError('Model training failed. (Empty Trained Model)')
 
-    for edge in GraphEdge.nodes():
-        embeddingsDict[edge] = TrainedModel.wv[edge].tolist()
+        for edge in GraphEdge.nodes():
+            embeddingsDict[edge] = TrainedModel.wv[edge].tolist()
 
-    with open(OutputFile, "w") as f:
-        json.dump(embeddingsDict, f, indent=2)
+        with open(OutputFile, "w") as f:
+            json.dump(embeddingsDict, f, indent=2)
 
-    if not OutputFile.is_file(): #Check if the file can be found, if not raise an error.
-        raise FileNotFoundError(f'"{OutputFile}" does not exist. (Missing Dataset)')
-except Exception as e:
-    print(str(e), file=sys.stderr)
-    sys.exit(1)
+        if not OutputFile.is_file(): #Check if the file can be found, if not raise an error.
+            raise FileNotFoundError(f'"{OutputFile}" does not exist. (Missing Dataset)')
+    except Exception as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)

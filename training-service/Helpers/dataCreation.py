@@ -1,14 +1,10 @@
+from hashlib import new
 import json
 import random
 import sys
 from pathlib import Path
 
-# === Start Parameters ===
-NumberOfSequences = 100
-LengthOfSequence = 100
-InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json" 
-
-# === Function to creates routes ===
+ # === Function to creates routes ===
 def random_sequence(graph, lengthOfSequence):
     if not graph: #Check if the data is empty, if it is raise an error.
         raise ValueError('"RoadNetwork.json" is empty or not loaded. (Empty Dataset)')
@@ -39,26 +35,27 @@ def random_sequence(graph, lengthOfSequence):
         visited_edges.add(chosen_edge)                      #Add the edge to visited List.
         current_node = str(next_node)                       #Change the current node to the new noce.
 
-    print(sequence, file=sys.stderr, flush=True)
     return sequence #Return the sequence when we are done.
 
-try:
-    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
-        raise FileNotFoundError(f'"RoadNetwork.json" does not exist. (Mising Dataset)')
+def GenerateRoutes(numberOfSequences, minLengthOfSequence, maxLengthOfSequence):
+    InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json"
+    
+    try:
+        if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+            raise FileNotFoundError(f'"RoadNetwork.json" does not exist. (Mising Dataset)')
 
-    #Opens the file and load data into "GraphData".
-    with open(InputFile, "r") as f:
-        GraphData = json.load(f)
+        #Opens the file and load data into "GraphData".
+        with open(InputFile, "r") as f:
+            GraphData = json.load(f)
 
-    Routes = []
-    for _ in range(NumberOfSequences):
-        LengthOfSequence = random.randint(5, 5)
-        sequence = random_sequence(GraphData, LengthOfSequence)
-        if sequence:
-            Routes.append(sequence)
+        Routes = []
+        for _ in range(numberOfSequences):
+            LengthOfSequence = random.randint(minLengthOfSequence, maxLengthOfSequence)
+            sequence = random_sequence(GraphData, LengthOfSequence)
+            if sequence:
+                Routes.append(sequence)
 
-    print(json.dumps(Routes))
+        return Routes
 
-except Exception as e:
-    print(str(e), file=sys.stderr)
-    sys.exit(1)
+    except Exception as e:
+        raise RuntimeError(str(e))

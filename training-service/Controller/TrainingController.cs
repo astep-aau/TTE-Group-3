@@ -9,21 +9,18 @@ namespace TrainingService.Controllers
     public class TrainingController : ControllerBase
     {
         private readonly TrainingService.Services.TrainingService _trainingService;
-        private readonly VectorEmbeddingService.Services.VectorEmbeddingService _vectorEmbeddingService;
         
-        public TrainingController(Services.TrainingService trainingService,  VectorEmbeddingService.Services.VectorEmbeddingService vectorEmbeddingService)
+        public TrainingController(Services.TrainingService trainingService)
         {
             _trainingService = trainingService;
-            _vectorEmbeddingService = vectorEmbeddingService;
         }
         
         [HttpPost("train")]
-        public IActionResult StartTraining(){
+        public async Task<IActionResult> StartTraining(){
             try{
-                string result = _trainingService.CreateTrainingSet();
-                return Ok(result);
-            }
-            catch (Exception ex){
+                var trainingSet = await _trainingService.CreateTrainingSet();
+                return Ok(trainingSet);
+            }catch (Exception ex){
                 return StatusCode(500, new { error = ex.Message });
             }
         }
@@ -32,13 +29,6 @@ namespace TrainingService.Controllers
         public IActionResult GetStatus()
         {
             return Ok(new { StatusTracker.Status });
-        }
-
-        [HttpPost("vector-embedding")]
-        public IActionResult GetVectorEmbedding()
-        {
-            _vectorEmbeddingService.VectorEmbedding();
-            return Ok("Done");
         }
     }
 }
