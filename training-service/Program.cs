@@ -6,7 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // ✅ Register your TrainingService
-builder.Services.AddSingleton<TrainingService>();
+builder.Services.AddSingleton<TrainingService.Services.TrainingService>();
 
 
 // Add Swagger if needed

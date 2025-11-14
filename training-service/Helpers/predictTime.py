@@ -7,7 +7,7 @@ from TrainingModel import LSTMModel
 model_path = Path(__file__).parent / "Datasets" / "best_model.pt"
 checkpoint = torch.load(model_path, map_location="cpu")
 
-model = LSTMModel(input_size=1)
+model = LSTMModel(input_size=5)
 model.load_state_dict(checkpoint["state_dict"])
 
 normalization = checkpoint["normalization"]

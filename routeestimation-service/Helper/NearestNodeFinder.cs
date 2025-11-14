@@ -32,8 +32,8 @@ public class NearestNodeFinder
             return true;
         }
     
-        lat = default;
-        lon = default;
+        lat = 0;
+        lon = 0;
         return false;
     }
     
@@ -52,14 +52,12 @@ public class NearestNodeFinder
         const double maxAcceptableDistanceMeters = 1000.0;
 
 
-        foreach (var (key, node) in _nodeCache)
+        foreach ((string key, var node) in _nodeCache)
         {
             double dist = Haversine(lat, lon, node.Lat, node.Lon);
-            if (dist < minDistance)
-            {
-                minDistance = dist;
-                nearestNodeId = key;
-            }
+            if (!(dist < minDistance)) continue;
+            minDistance = dist;
+            nearestNodeId = key;
         }
         
         if (minDistance > maxAcceptableDistanceMeters)
@@ -80,18 +78,18 @@ public class NearestNodeFinder
 
             _nodeCache = new Dictionary<string, NodeData>(StringComparer.Ordinal);
 
-            foreach (var rawLine in File.ReadLines(path))
+            foreach (string rawLine in File.ReadLines(path))
             {
-                var line = rawLine?.Trim();
+                string line = rawLine?.Trim();
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 if (line.StartsWith("#")) continue; 
 
-                var parts = line.Split(',');
+                string[] parts = line.Split(',');
                 if (parts.Length < 3) continue;
 
-                var id = parts[0].Trim().Trim('"');
-                var lonStr = parts[1].Trim().Trim('"'); //File format is ID, Lon, Lat
-                var latStr = parts[2].Trim().Trim('"');
+                string id = parts[0].Trim().Trim('"');
+                string lonStr = parts[1].Trim().Trim('"'); //File format is ID, Lon, Lat
+                string latStr = parts[2].Trim().Trim('"');
 
                 if (string.IsNullOrEmpty(id)) continue;
 

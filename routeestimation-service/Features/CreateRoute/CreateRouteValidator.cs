@@ -9,17 +9,17 @@ public class CreateRouteValidator : AbstractValidator<CreateProcessEvent>
 {
     public CreateRouteValidator()
     {
-        RuleFor(x => x.ProcessId).GreaterThan(0).WithMessage("ProcessId must be greater than 0");
-        RuleFor(x => x.CorrelationId).NotEmpty().WithMessage("CorrelationId is required");
+        RuleFor(x => x.ProcessId).GreaterThan(0).WithMessage("[Validator] ProcessId must be greater than 0");
+        RuleFor(x => x.CorrelationId).NotEmpty().WithMessage("[Validator] CorrelationId is required");
         RuleFor(x => x.Origin)
-            .NotEmpty().WithMessage("Origin must be specified")
-            .Must(BeLatLon).WithMessage("Origin must be in 'lat,lon' format with numeric values");
+            .NotEmpty().WithMessage("[Validator] Origin must be specified")
+            .Must(BeLatLon).WithMessage("[Validator] Origin must be in 'lat,lon' format with numeric values");
         RuleFor(x => x.Destination)
-            .NotEmpty().WithMessage("Destination must be specified")
-            .Must(BeLatLon).WithMessage("Destination must be in 'lat,lon' format with numeric values");
-        RuleFor(x => x.Origin).NotEqual(x => x.Destination).WithMessage("Origin and Destination must be different");
-        RuleFor(x => x.CreatedAt).NotEqual(default(DateTime)).WithMessage("CreatedAt must be set");
-        RuleFor(x => x.ModelVersion).NotEmpty().WithMessage("ModelVersion must be specified");
+            .NotEmpty().WithMessage("[Validator] Destination must be specified")
+            .Must(BeLatLon).WithMessage("[Validator] Destination must be in 'lat,lon' format with numeric values");
+        RuleFor(x => x.Origin).NotEqual(x => x.Destination).WithMessage("[Validator] Origin and Destination must be different");
+        RuleFor(x => x.CreatedAt).NotEqual(default(DateTime)).WithMessage("[Validator] CreatedAt must be set");
+        RuleFor(x => x.ModelVersion).NotEmpty().WithMessage("[Validator] ModelVersion must be specified");
     }
 
     private static bool BeLatLon(string? s)

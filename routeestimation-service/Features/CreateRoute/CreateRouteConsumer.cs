@@ -30,71 +30,61 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
 
     public async Task Consume(ConsumeContext<CreateProcessEvent> context)
     {
-        var evt = context.Message;
+        await HandleEventAsync(context.Message);
+    }
+    
+    public async Task HandleEventAsync(CreateProcessEvent evt)
+    {
+        // var evt = context.Message;
 
-        _logger.LogInformation("Received CreateProcessEvent for CorrelationId={CorrelationId}", evt.CorrelationId);
+        _logger.LogInformation("[Consumer] Received CreateProcessEvent for CorrelationId={CorrelationId}", evt.CorrelationId);
 
         // Validate the incoming event
         ValidationResult validation = await _validator.ValidateAsync(evt);
         if (!validation.IsValid)
         {
-            _logger.LogWarning("CreateProcessEvent validation failed: {Errors}", validation.Errors);
+            _logger.LogWarning("[Consumer] CreateProcessEvent validation failed: {Errors}", validation.Errors);
             return; // Drop/ack the message - or move to dead-letter depending on your policy
         }
-
-        // Extract lat/lon from Origin and Destination
-        (string origLat, string origLon) = ParseLatLon(evt.Origin);
-        (string destLat, string destLon) = ParseLatLon(evt.Destination);
         
-        if (origLat is null || origLon is null)
-            _logger.LogWarning("Event Origin could not be parsed as lat,lon: {Origin}", evt.Origin);
-
-        // Find nearest OSM nodes for origin
-        string originNode = (origLat is not null && origLon is not null) ? NearestNodeFinder.NearestNode(origLat, origLon) : null;
-        _logger.LogInformation("Created origin OSM node: {Node}", originNode);
-
-        if (destLat is null || destLon is null)
-            _logger.LogWarning("Event Destination could not be parsed as lat,lon: {Destination}", evt.Destination);
-
-        // Find nearest OSM nodes for destination
-        string destinationNode = (destLat is not null && destLon is not null) ? NearestNodeFinder.NearestNode(destLat, destLon) : null;
-        _logger.LogInformation("Created destination OSM node: {Node}", destinationNode);
-
+        
         var payload = new ProcessPayload
         {
             ProcessId = evt.ProcessId,
             CorrelationId = evt.CorrelationId,
-            Origin = originNode ?? string.Empty,
-            Destination = destinationNode ?? string.Empty,
+            Origin = evt.Origin,
+            Destination = evt.Destination,
             TimeOfTravel = evt.TimeOfTravel,
             CreatedAt = evt.CreatedAt,
             ModelVersion = evt.ModelVersion
         };
 
         // Handle the route creation
-        _logger.LogInformation("Processing route for ProcessId={ProcessId}", payload.ProcessId);
+        _logger.LogInformation("[Consumer] Processing route for ProcessId={ProcessId}", payload.ProcessId);
         var result = _handler.HandleAsync(payload);
 
         if (!result.IsSuccess)
         {
-            _logger.LogError("Route processing failed for ProcessId={ProcessId}: {Errors}", payload.ProcessId,
+            _logger.LogError("[Consumer] Route processing failed for ProcessId={ProcessId}: {Errors}", payload.ProcessId,
                 string.Join(", ", result.Errors));
             return;
         }
         _logger.LogInformation(
-            "Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}", result.Value.RouteId,
+            "[Consumer] Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}", result.Value.RouteId,
             payload.ProcessId, result.Value);
         
         // Handle the time estimation
-        _logger.LogInformation("Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, result.Value.RouteId);
-        var timeEstimationResult = EstimateTimeHandler.EstimateTime(result.Value);
-    }
-
-    // Parse lat/lon from origin and destination. Expecting format "lat,lon".
-    private static (string lat, string lon) ParseLatLon(string s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return (null, null);
-        string[] parts = s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts.Length < 2 ? (null, null) : (parts[0], parts[1]);
+        _logger.LogInformation("[Consumer] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, result.Value.RouteId);
+        var estimateTimeHandler = new EstimateTimeHandler(_logger);
+        var timeEstimationResult = estimateTimeHandler.EstimateTime(result.Value);
+        if (!timeEstimationResult.IsSuccess)
+        {
+            _logger.LogError("[Consumer] Time estimation failed for ProcessId={ProcessId}, RouteId={RouteId}: {Errors}", payload.ProcessId,
+                result.Value.RouteId, string.Join(", ", timeEstimationResult.Errors));
+            return;
+        }
+        _logger.LogInformation(
+            "[Consumer] Time estimation completed for ProcessId={ProcessId}, RouteId={RouteId} with EstimatedTime={EstimatedTime} seconds",
+            payload.ProcessId, result.Value.RouteId, timeEstimationResult.Value.EstimatedTimeSeconds);
     }
 }

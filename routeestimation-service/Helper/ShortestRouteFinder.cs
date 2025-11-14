@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Linq;
+using System.Globalization;
 using FluentResults;
 using RouteEstimationService.Domain.Entities;
 
@@ -79,7 +80,7 @@ public class ShortestRouteFinder
             {
                 int edgeId = node.BackwardEdges[i];
                 string neighbor = node.BackwardVertices[i];
-                if (!_nodeCache.ContainsKey(neighbor) || !_edgeCache.TryGetValue(edgeId, out var edge)) continue;
+                if (!_nodeCache.ContainsKey(neighbor) || !_edge_cache_try(edgeId, out var edge)) continue;
                 // Only allow backward traversal if edge is not oneway
                 if (edge.Oneway) continue;
                 double tentativeGScore = gScore[current] + edge.LengthCm;
@@ -93,6 +94,12 @@ public class ShortestRouteFinder
         }
         // No route found
         return Result.Ok(new RouteResult());
+    }
+
+    // helper to avoid repeated TryGetValue pattern with correct edge lookup
+    private static bool _edge_cache_try(int edgeId, out EdgeData edge)
+    {
+        return _edgeCache.TryGetValue(edgeId, out edge);
     }
 
     private static RouteResult ReconstructPath(Dictionary<string, (string prevNode, int edgeId)> cameFrom, string current)
@@ -129,12 +136,12 @@ public class ShortestRouteFinder
             n.TryGetValue("lon", out object valueLon);
             var nodeData = new NodeData
             {
-                OutwardEdges = valueEdge is not null ? JsonArrayToIntList(valueEdge) : [],
-                OutwardVertices = valueVertex is not null ? JsonArrayToStringList(valueVertex) : [],
-                BackwardEdges = valueBackEdge is not null ? JsonArrayToIntList(valueBackEdge) : [],
-                BackwardVertices = valueBackVertex is not null ? JsonArrayToStringList(valueBackVertex) : [],
-                Lat = valueLat is double dLat ? dLat : valueLat is string sLat && double.TryParse(sLat, out double parsedLat) ? parsedLat : 0,
-                Lon = valueLon is double dLon ? dLon : valueLon is string sLon && double.TryParse(sLon, out double parsedLon) ? parsedLon : 0
+                OutwardEdges = valueEdge is not null ? JsonArrayToIntList(valueEdge) : new List<int>(),
+                OutwardVertices = valueVertex is not null ? JsonArrayToStringList(valueVertex) : new List<string>(),
+                BackwardEdges = valueBackEdge is not null ? JsonArrayToIntList(valueBackEdge) : new List<int>(),
+                BackwardVertices = valueBackVertex is not null ? JsonArrayToStringList(valueBackVertex) : new List<string>(),
+                Lat = ToDouble(valueLat),
+                Lon = ToDouble(valueLon)
             };
             _nodeCache[key] = nodeData;
         }
@@ -143,15 +150,16 @@ public class ShortestRouteFinder
         string edgeJson = File.ReadAllText(edgePath);
         var edgeDict = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(edgeJson);
         _edgeCache = new Dictionary<int, EdgeData>(edgeDict.Count);
-        foreach (var kvp in edgeDict)
+        foreach ((string key, var edge) in edgeDict)
         {
-            var e = kvp.Value;
+            edge.TryGetValue("length (cm)", out object lengthObj);
+            edge.TryGetValue("oneway", out object onewayObj);
             var edgeData = new EdgeData
             {
-                LengthCm = e.TryGetValue("length (cm)", out object value) ? Convert.ToDouble(value) : 0,
-                Oneway = e.TryGetValue("oneway", out object onewayObj) && onewayObj != null && Convert.ToBoolean(onewayObj)
+                LengthCm = ToDouble(lengthObj),
+                Oneway = ToBool(onewayObj)
             };
-            _edgeCache[int.Parse(kvp.Key)] = edgeData;
+            _edgeCache[int.Parse(key)] = edgeData;
         }
         _isLoaded = true;
     }
@@ -194,6 +202,75 @@ public class ShortestRouteFinder
         }
         return list;
     }
+
+    private static double ToDouble(object value)
+    {
+        switch (value)
+        {
+            case null:
+                return 0;
+            case double d:
+                return d;
+            case float f:
+                return f;
+            case long l:
+                return l;
+            case int i:
+                return i;
+            case JsonElement { ValueKind: JsonValueKind.Number } je when je.TryGetDouble(out double jd):
+                return jd;
+            case JsonElement je:
+            {
+                if (je.ValueKind == JsonValueKind.String)
+                {
+                    string s = je.GetString();
+                    if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double parsed)) return parsed;
+                }
+                if (je.ValueKind == JsonValueKind.True) return 1;
+                if (je.ValueKind == JsonValueKind.False) return 0;
+                break;
+            }
+        }
+
+        // fallback: attempt parse from string representation
+        var str = value.ToString();
+        if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedStr)) return parsedStr;
+        return 0;
+    }
+
+    private static bool ToBool(object value)
+    {
+        switch (value)
+        {
+            case null:
+                return false;
+            case bool b:
+                return b;
+            case JsonElement { ValueKind: JsonValueKind.True }:
+                return true;
+            case JsonElement { ValueKind: JsonValueKind.False }:
+                return false;
+            case JsonElement { ValueKind: JsonValueKind.Number } je when je.TryGetInt32(out int iv):
+                return iv != 0;
+            case JsonElement je:
+            {
+                if (je.ValueKind == JsonValueKind.String)
+                {
+                    string s = je.GetString();
+                    if (bool.TryParse(s, out bool parsedBool)) return parsedBool;
+                    if (int.TryParse(s, out int parsedInt)) return parsedInt != 0;
+                }
+
+                break;
+            }
+        }
+
+        var str = value.ToString();
+        if (bool.TryParse(str, out bool parsed)) return parsed;
+        if (int.TryParse(str, out int parsedInt2)) return parsedInt2 != 0;
+        return false;
+    }
+
     private static double Haversine(NodeData a, NodeData b)
     {
         const double r = 6371e3; // metres
