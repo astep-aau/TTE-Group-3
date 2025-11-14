@@ -14,8 +14,8 @@ public class ShortestRouteFinder
     private static Dictionary<string, NodeData> _nodeCache;
     private static Dictionary<int, EdgeData> _edgeCache;
     private static bool _isLoaded;
-    private const string RoadNetworkFile = "Datasets/RoadNetwork.json";
-    private const string EdgeFile = "Datasets/edge_traversals_processed.json";
+    private const string RoadNetworkFile = "Datasets/RoadNetwork.json"; // Upload nye filer
+    private const string EdgeFile = "Datasets/edge_traversals_processed.json"; // Upload nye filer
 
     private class NodeData
     {
@@ -106,17 +106,20 @@ public class ShortestRouteFinder
     {
         var nodes = new List<string>();
         var edges = new List<int>();
+        var totalDistanceCm = 0.0;
         nodes.Add(current);
         while (cameFrom.ContainsKey(current))
         {
             (string prev, int edgeId) = cameFrom[current];
             edges.Add(edgeId);
+            totalDistanceCm += _edgeCache[edgeId].LengthCm;
             current = prev;
             nodes.Add(current);
         }
         nodes.Reverse();
         edges.Reverse();
-        return new RouteResult { NodeIds = nodes, EdgeIds = edges };
+
+        return new RouteResult { NodeIds = nodes, EdgeIds = edges, DistanceKm = totalDistanceCm / 100000 };
     }
 
     private static void LoadData()

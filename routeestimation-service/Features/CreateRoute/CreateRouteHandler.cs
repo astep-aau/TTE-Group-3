@@ -2,6 +2,7 @@ using System;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
+using RouteEstimationService.Domain.Entities.Events;
 using RouteEstimationService.Helper;
 using RouteEstimationService.Features.EstimateTime;
 
@@ -82,6 +83,14 @@ public class CreateRouteHandler
         _logger.LogInformation(
             "[RouteHandler] Time estimation completed for ProcessId={ProcessId}, RouteId={RouteId} with EstimatedTime={EstimatedTime} seconds",
             payload.ProcessId, routeResult.Value.RouteId, routeResult.Value.EstimatedTimeSeconds);
+        
+        routeResult.Value.Path = NodeIDToCoordinates.Map(routeResult.Value.NodeIds)
+            .ConvertAll(coord => new RouteCoordinate
+            {
+                Latitude = coord.Lat,
+                Longitude = coord.Lon,
+                RouteResultId = payload.ProcessId
+            });
         
         return Result.Ok(routeResult.Value);
 

@@ -36,7 +36,6 @@ public class NearestNodeFinder
         lon = 0;
         return false;
     }
-    
 
     public static string NearestNode(string latStr, string lonStr)
     {
@@ -70,6 +69,9 @@ public class NearestNodeFinder
 
     private static void LoadNodes()
     {
+        
+        Console.WriteLine(NodeCoordinatesFile);
+        
         try
         {
             string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, NodeCoordinatesFile);
@@ -93,21 +95,20 @@ public class NearestNodeFinder
 
                 if (string.IsNullOrEmpty(id)) continue;
 
-                // Optional header handling: skip if non-numeric coordinates
-                if (!double.TryParse(latStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double lat)) continue;
-                if (!double.TryParse(lonStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double lon)) continue;
-
+                double lat = double.Parse(latStr, CultureInfo.InvariantCulture);
+                double lon = double.Parse(lonStr, CultureInfo.InvariantCulture);
+                
                 _nodeCache[id] = new NodeData { Lat = lat, Lon = lon };
             }
 
             if (_nodeCache.Count == 0)
-                throw new Exception("No valid nodes with lat/lon found in NodeCoordinates.csv.");
+                throw new Exception("No valid nodes with lat/lon found in file.csv.");
 
             _isLoaded = true;
         }
         catch (Exception ex)
         {
-            throw new Exception("Failed to load NodeCoordinates.csv", ex);
+            throw new Exception("Failed to load file.csv", ex);
         }
     }
 

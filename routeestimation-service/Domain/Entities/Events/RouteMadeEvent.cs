@@ -5,10 +5,20 @@ namespace RouteEstimationService.Domain.Entities.Events;
 
 public record RouteMadeEvent
 {
-    public Guid RouteId { get; init; }
-    public Guid CorrelationId { get; init; }
-    public int ProcessId { get; init; }
-    public List<string> NodeIds { get; init; } = new List<string>();
-    public List<int> EdgeIds { get; init; } = new List<int>();
-    public double EstimatedTimeSeconds { get; set; } = 0;
+    public int Id { get; init; }
+    public Guid CorrelationId { get; init; } = Guid.Empty;
+    public string Origin { get; init; } = string.Empty;
+    public string Destination { get; init; } = string.Empty;
+
+    public double DistanceKm { get; init; }
+    public double TravelTimeMinutes { get; init; }
+    
+    public List<RouteCoordinate> Path { get; init; } = new();
+}
+
+public record RouteCoordinate
+{
+    public double Latitude { get; init; }
+    public double Longitude { get; init; }
+    public int RouteResultId { get; init; } 
 }

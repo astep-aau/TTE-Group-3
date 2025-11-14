@@ -64,12 +64,13 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         
         var routeMadeEvent = new RouteMadeEvent
         {
-            RouteId = route.Value.RouteId,
-            CorrelationId = payload.CorrelationId,
-            ProcessId = payload.ProcessId,
-            NodeIds = route.IsSuccess ? route.Value.NodeIds : new List<string>(),
-            EdgeIds = route.IsSuccess ? route.Value.EdgeIds : new List<int>(),
-            EstimatedTimeSeconds = route.IsSuccess ? route.Value.EstimatedTimeSeconds : 0,
+           Id = payload.ProcessId,
+           CorrelationId = payload.CorrelationId,
+           Origin = payload.Origin, 
+           Destination = payload.Destination,
+           DistanceKm = route.Value.DistanceKm, 
+           TravelTimeMinutes = route.Value.EstimatedTimeSeconds, 
+           Path = route.Value.Path 
         };
 
         if (!route.IsSuccess)

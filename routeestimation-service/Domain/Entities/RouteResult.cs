@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RouteEstimationService.Domain.Entities.Events;
 
 namespace RouteEstimationService.Domain.Entities;
 
@@ -9,7 +10,9 @@ public record RouteResult
     public Guid RouteId { get; } = Guid.NewGuid();
     public List<string> NodeIds { get; init; } = new List<string>();
     public List<int> EdgeIds { get; init; } = new List<int>();
+    public double DistanceKm { get; set; } = 0;
     public double EstimatedTimeSeconds { get; set; } = 0;
+    public List<RouteCoordinate> Path { get; set; } = new List<RouteCoordinate>();
 
     // Provide a readable string so logging prints list contents instead of the collection type name
     public override string ToString()

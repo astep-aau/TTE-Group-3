@@ -6,7 +6,6 @@ namespace RouteEstimationService.Domain.Entities;
 
 public record ProcessPayload
 {
-    public int Id { get; init; }
     public int ProcessId { get; init; }
     public Guid CorrelationId { get; init; } = Guid.Empty;
     public string Origin { get; init; } = string.Empty;
