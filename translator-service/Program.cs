@@ -6,8 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using translator_service;
 using translator_service.API;
 using translator_service.Features.CreateProcess;
-using translator_service.Features.GetTravelTime;
-using translator_service.Infrastructure;
 using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -79,8 +77,7 @@ builder.Services.AddCors(options =>
 // Register your handler and repository
 builder.Services.AddScoped<GetRouteHandler>();
 builder.Services.AddScoped<IRouteRepository, RouteRepository>();
-builder.Services.AddScoped<GetTravelTimeHandler>();
-builder.Services.AddScoped<ITravelTimeRepository, TravelTimeRepository>();
+builder.Services.AddScoped<RouteDeliveredEmitter>();
 
 // CreateProcess registrations (required for endpoint to resolve handler/repo)
 builder.Services.AddScoped<CreateProcessHandler>();

@@ -9,7 +9,5 @@ public class CreateProcessRequest
     public TimeOnly TimeOfTravel { get; init; } = TimeOnly.MinValue;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public string ModelVersion { get; set; } = string.Empty;
-    public bool routeCreated { get; set; } = false;
-    public bool timeEstimated { get; set; } = false;
 }
 

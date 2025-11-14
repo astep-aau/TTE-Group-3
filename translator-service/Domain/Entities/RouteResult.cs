@@ -10,6 +10,7 @@ public record RouteResult
     public string Destination { get; init; } = string.Empty;
 
     public double DistanceKm { get; init; }
+    public double TravelTimeMinutes { get; init; }
     
     public List<RouteCoordinate> Path { get; init; } = new();
 }

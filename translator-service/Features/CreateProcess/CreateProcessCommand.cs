@@ -12,8 +12,6 @@ public class CreateProcessCommand
     public TimeOnly TimeOfTravel { get; init; } = TimeOnly.MinValue;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public string ModelVersion { get; set; } = string.Empty;
-    public bool routeCreated { get; set; } = false;
-    public bool timeEstimated { get; set; } = false;
     
     public CreateProcessCommand() { }
     
@@ -26,8 +24,6 @@ public class CreateProcessCommand
         TimeOfTravel = request.TimeOfTravel;
         ModelVersion = request.ModelVersion;
         CreatedAt = request.CreatedAt;
-        routeCreated = request.routeCreated;
-        timeEstimated = request.timeEstimated;
     }
 }
 

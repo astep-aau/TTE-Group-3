@@ -18,6 +18,8 @@ namespace StateService.Infrastructure.Persistence
             modelBuilder.Entity<LiveTaskEntity>(e =>
             {
                 e.HasKey(t => t.Pid);
+                e.Property(t => t.CorrelationId).HasMaxLength(64);
+                e.HasIndex(t => t.CorrelationId);
                 e.Property(t => t.CurrentState)
                     .HasConversion<string>()
                     .IsRequired();

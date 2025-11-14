@@ -37,4 +37,10 @@
     <Folder Include="Migrations\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="state-service.Tests\**" />
+    <EmbeddedResource Remove="state-service.Tests\**" />
+    <None Remove="state-service.Tests\**" />
+  </ItemGroup>
+
 </Project>

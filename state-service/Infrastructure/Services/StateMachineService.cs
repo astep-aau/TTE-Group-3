@@ -4,6 +4,7 @@ using StateService.Domain.Entities;
 using StateService.Domain.Value;
 using StateService.Infrastructure.Persistence;
 using System.Text.Json;
+using System.Linq;
 using LiveTaskEntity = StateService.Domain.Entities.Task;
 
 namespace StateService.Infrastructure.Services
@@ -13,6 +14,7 @@ namespace StateService.Infrastructure.Services
         System.Threading.Tasks.Task<int> CreateAsync(string? correlationId, CancellationToken ct = default);
         System.Threading.Tasks.Task<bool> AdvanceAsync(int pid, TaskState nextState, string? correlationId, CancellationToken ct = default);
         System.Threading.Tasks.Task<TaskState?> GetStateAsync(int pid, CancellationToken ct = default);
+        System.Threading.Tasks.Task<int?> GetPidByCorrelationIdAsync(string correlationId, CancellationToken ct = default);
     }
 
     public class StateMachineService : IStateMachineService
@@ -38,7 +40,10 @@ namespace StateService.Infrastructure.Services
 
         public async System.Threading.Tasks.Task<int> CreateAsync(string? correlationId, CancellationToken ct = default)
         {
-            var task = new LiveTaskEntity();
+            var task = new LiveTaskEntity
+            {
+                CorrelationId = correlationId
+            };
             _db.Tasks.Add(task);
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Process created pid={Pid} correlationId={CorrelationId}", task.Pid, correlationId);
@@ -64,6 +69,11 @@ namespace StateService.Infrastructure.Services
             {
                 _logger.LogWarning("Advance failed pid={Pid} current={Current} attempted={Next} requiredPrev={RequiredPrev} correlationId={CorrelationId}", pid, task.CurrentState, nextState, requiredPrev, correlationId);
                 return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(correlationId) && string.IsNullOrWhiteSpace(task.CorrelationId))
+            {
+                task.CorrelationId = correlationId;
             }
 
             task.CurrentState = nextState;
@@ -100,6 +110,21 @@ namespace StateService.Infrastructure.Services
         {
             var task = await _db.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Pid == pid, ct);
             return task?.CurrentState;
+        }
+
+        public async System.Threading.Tasks.Task<int?> GetPidByCorrelationIdAsync(string correlationId, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(correlationId))
+            {
+                return null;
+            }
+
+            var task = await _db.Tasks.AsNoTracking()
+                .Where(t => t.CorrelationId == correlationId)
+                .Select(t => (int?)t.Pid)
+                .FirstOrDefaultAsync(ct);
+
+            return task;
         }
 
         private void EnqueueOutbox(int pid, TaskState newState, string? correlationId)

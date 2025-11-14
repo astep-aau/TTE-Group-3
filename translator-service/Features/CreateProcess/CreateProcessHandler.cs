@@ -20,7 +20,7 @@ public class CreateProcessHandler
         _emitter = emitter;
     }
     
-    public async Task HandleAsync(CreateProcessCommand command, CancellationToken ct)
+    public virtual async Task HandleAsync(CreateProcessCommand command, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
         
@@ -44,9 +44,7 @@ public class CreateProcessHandler
                     Destination = command.Destination,
                     CreatedAt = command.CreatedAt,
                     ModelVersion = command.ModelVersion,
-                    TimeOfTravel = command.TimeOfTravel,
-                    routeCreated = command.routeCreated,
-                    timeEstimated = command.timeEstimated
+                    TimeOfTravel = command.TimeOfTravel
                 };
                 
                 // Alt andet er logging. This linje er den vigtige
