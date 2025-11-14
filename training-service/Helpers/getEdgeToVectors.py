@@ -12,27 +12,25 @@ def convertEdgeToVector(embeddings, edges):
         vectors.append(vector)                                              #Add the vector to the list
     return vectors
 
-#Runtime Code
-try:
-    InputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"   #Path to the embeddings file
-    edges = json.loads(sys.argv[1])                                         #List of edges to convert
+def GetEdgeToVectors(edges):
+    try:
+        InputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"   #Path to the embeddings file
 
-    if not edges: #Check if the data is empty, if it is raise an error.
-        raise ValueError('No route data provided. (Empty Route)')
+        if not edges: #Check if the data is empty, if it is raise an error.
+            raise ValueError('No route data provided. (Empty Route)')
     
-    if not InputFile.is_file(): #Check if the file can be found, if not raise an error. 
-        raise FileNotFoundError(f'"edgeEmbeddings.emb" does not exist. (Missing dataset)')
+        if not InputFile.is_file(): #Check if the file can be found, if not raise an error. 
+            raise FileNotFoundError(f'"edgeEmbeddings.emb" does not exist. (Missing dataset)')
     
-    with open(InputFile, "r") as f:
-        Embeddings = json.load(f)
+        with open(InputFile, "r") as f:
+            Embeddings = json.load(f)
 
-    #Call the function that converts edges to their vectors
-    vectors = convertEdgeToVector(Embeddings, edges)
+        #Call the function that converts edges to their vectors
+        vectors = convertEdgeToVector(Embeddings, edges)
 
-    if not vectors: #Check if the data is empty, if it is raise an error.
-        raise ValueError('No Vectors Converted. (Error in Conversion)')
+        if not vectors: #Check if the data is empty, if it is raise an error.
+            raise ValueError('No Vectors Converted. (Error in Conversion)')
     
-    print(json.dumps(vectors))
-except Exception as e:
-    print(str(e), file=sys.stderr)
-    sys.exit(1)
+        return vectors
+    except Exception as e:
+        raise RuntimeError(str(e))

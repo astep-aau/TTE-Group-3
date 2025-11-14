@@ -1,13 +1,7 @@
 import json
-import sys
 import random
 from pathlib import Path
 import numpy as np
-
-# === Start Parameters ===
-InputFile = Path(__file__).parent / "Datasets" / "RoadTraversal.json"
-EmbeddingFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
-Route = json.loads(sys.argv[1])
 
 # === Function to calculate edge traversal times ===
 def get_edge_time(route, traversalData, embeddings_dict):
@@ -63,32 +57,36 @@ def get_edge_time(route, traversalData, embeddings_dict):
 
     return times
 
-try:
-    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
-        raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
-    
-    if not EmbeddingFile.is_file(): #Check if the file can be found, if not raise an error.
-        raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Mising Dataset)')
+def EdgeTraversalTime(route):
+    InputFile = Path(__file__).parent / "Datasets" / "RoadTraversal.json"
+    EmbeddingFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
+    Route = route
 
-    #Opens the file and load data into "traversalData".
-    with open(InputFile, "r") as f:
-        traversalData = json.load(f)
+    try:
+        if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+            raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
+    
+        if not EmbeddingFile.is_file(): #Check if the file can be found, if not raise an error.
+            raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Mising Dataset)')
 
-    if not traversalData: #Check if travalsalData is empty, if it is raise an error.
-        raise ValueError('"RoadTraversal.json" is empty or not loaded. (Empty Dataset)')
-    
-    if not Route: #Check if the data is empty, if it is raise an error.
-        raise ValueError('No route data provided. (Empty Route)')
-    
-    # Load embeddings once outside the loop
-    with open(EmbeddingFile, "r") as f:
-        embeddingData = json.load(f)
+        #Opens the file and load data into "traversalData".
+        with open(InputFile, "r") as f:
+            traversalData = json.load(f)
 
-    if not embeddingData: #Check if travalsalData is empty, if it is raise an error.
-        raise ValueError('"edgeEmbeddings.json" is empty or not loaded. (Empty Dataset)')    
+        if not traversalData: #Check if travalsalData is empty, if it is raise an error.
+            raise ValueError('"RoadTraversal.json" is empty or not loaded. (Empty Dataset)')
     
-    times = get_edge_time(Route, traversalData, embeddingData)
-    print(json.dumps(times))
-except Exception as e:
-    print(str(e), file=sys.stderr)
-    sys.exit(1)
+        if not Route: #Check if the data is empty, if it is raise an error.
+            raise ValueError('No route data provided. (Empty Route)')
+    
+        # Load embeddings once outside the loop
+        with open(EmbeddingFile, "r") as f:
+            embeddingData = json.load(f)
+
+        if not embeddingData: #Check if travalsalData is empty, if it is raise an error.
+            raise ValueError('"edgeEmbeddings.json" is empty or not loaded. (Empty Dataset)')    
+    
+        times = get_edge_time(Route, traversalData, embeddingData)
+        return times
+    except Exception as e:
+        raise RuntimeError(str(e))
