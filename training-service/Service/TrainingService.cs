@@ -1,6 +1,5 @@
 using System.Text.Json;
 using trainingService.Domain;
-using Helpers;
 using System.Security.Cryptography;
 
 namespace TrainingService.Services
@@ -8,13 +7,6 @@ namespace TrainingService.Services
     //Denne service 
     public class TrainingService
     {
-        private readonly RabbitMqPublisher _publisher;
-
-        public TrainingService(RabbitMqPublisher publisher)
-        {
-        _publisher = publisher;
-        }
-
         private static readonly HttpClient client = new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(1000)
@@ -155,7 +147,6 @@ namespace TrainingService.Services
 
             await LstmTraining();
             
-            _publisher.Publish("TrainingService", "New model trained: " + modelName);
             StatusTracker.Status = "Idle";
             return "Training Done";
         }

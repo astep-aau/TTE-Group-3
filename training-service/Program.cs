@@ -7,7 +7,6 @@ builder.Services.AddControllers();
 
 // ✅ Register your TrainingService
 builder.Services.AddSingleton<TrainingService.Services.TrainingService>();
-builder.Services.AddSingleton<TrainingService.Services.RabbitMqPublisher>();
 
 
 // Add Swagger if needed
