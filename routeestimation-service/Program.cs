@@ -10,13 +10,6 @@ using RouteEstimationService.Features.CreateRoute;
 using RouteEstimationService.Domain.Entities.Events;
 using Serilog;
 
-// allow running the OSM extractor directly via: dotnet run -- extract <pbf> <json> <csv>
-if (args.Length > 0 && string.Equals(args[0], "extract", StringComparison.OrdinalIgnoreCase))
-{
-    int exitCode = OSMNodeExtractor.OSMNodeExtractor.Extract(args.Skip(1).ToArray());
-    Environment.Exit(exitCode);
-}
-
 try
 {
     Log.Logger = new LoggerConfiguration()
