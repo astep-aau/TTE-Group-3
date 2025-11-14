@@ -10,5 +10,5 @@ public record CreateProcessEvent
     public string Destination { get; init; } = string.Empty;
     public TimeOnly TimeOfTravel { get; init; } = TimeOnly.MinValue;
     public DateTime CreatedAt { get; init; }
-    public string ModelVersion { get; set; } = string.Empty;
+    public string ModelVersion { get; init; } = string.Empty;
 }
