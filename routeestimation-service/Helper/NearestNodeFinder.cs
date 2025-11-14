@@ -49,6 +49,8 @@ public class NearestNodeFinder
 
         string nearestNodeId = null;
         var minDistance = double.MaxValue;
+        const double maxAcceptableDistanceMeters = 1000.0;
+
 
         foreach (var (key, node) in _nodeCache)
         {
@@ -58,6 +60,11 @@ public class NearestNodeFinder
                 minDistance = dist;
                 nearestNodeId = key;
             }
+        }
+        
+        if (minDistance > maxAcceptableDistanceMeters)
+        {
+            throw new Exception($"No nearby node found within {maxAcceptableDistanceMeters} meters.");
         }
 
         return nearestNodeId ?? throw new Exception("No nodes found in NodeCoordinates.csv.");
@@ -77,7 +84,7 @@ public class NearestNodeFinder
             {
                 var line = rawLine?.Trim();
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                if (line.StartsWith("#")) continue; // comment line
+                if (line.StartsWith("#")) continue; 
 
                 var parts = line.Split(',');
                 if (parts.Length < 3) continue;
