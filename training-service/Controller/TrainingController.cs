@@ -15,10 +15,10 @@ namespace TrainingService.Controllers
             _trainingService = trainingService;
         }
         
-        [HttpPost("train")]
-        public async Task<IActionResult> StartTraining(){
+        [HttpPost("/Training/{modelName}")]
+        public async Task<IActionResult> StartTraining(string modelName){
             try{
-                var trainingSet = await _trainingService.CreateTrainingSet();
+                var trainingSet = await _trainingService.CreateTrainingSet(modelName);
                 return Ok(trainingSet);
             }catch (Exception ex){
                 return StatusCode(500, new { error = ex.Message });

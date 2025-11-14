@@ -8,7 +8,13 @@ namespace TrainingService.Services
     //Denne service 
     public class TrainingService
     {
-        // Shared HttpClient for the entire service
+        private readonly RabbitMqPublisher _publisher;
+
+        public TrainingService(RabbitMqPublisher publisher)
+        {
+        _publisher = publisher;
+        }
+
         private static readonly HttpClient client = new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(1000)
@@ -24,7 +30,6 @@ namespace TrainingService.Services
                 int minLength = 5;
                 int maxLength = 150;
 
-                using var client = new HttpClient();
                 string url = $"http://127.0.0.1:8000/Python/generate-routes/{numberOfSequences}/{minLength}/{maxLength}";
 
                 // Send GET request
@@ -117,7 +122,7 @@ namespace TrainingService.Services
         }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
-        public async Task<string> CreateTrainingSet()
+        public async Task<string> CreateTrainingSet(string modelName)
         {
             //Laver et nyt object af vores Model "TrainingSet"
             TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
@@ -150,6 +155,7 @@ namespace TrainingService.Services
 
             await LstmTraining();
             
+            _publisher.Publish("TrainingService", "New model trained: " + modelName);
             StatusTracker.Status = "Idle";
             return "Training Done";
         }
