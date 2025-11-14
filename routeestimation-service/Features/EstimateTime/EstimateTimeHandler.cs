@@ -83,8 +83,10 @@ public class EstimateTimeHandler
         }
         
         route.EmbeddedEdges = parsed;
-
-        // Handle time estimation
+        
+        // Post embedded edges to time prediction service
+        _logger.LogInformation("[EstimateTimeHandler] Posting embedded edges to time prediction service for RouteId={RouteId}",
+            route.RouteId);
         try
         {
             response = http.PostAsync(
