@@ -16,24 +16,19 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
     private readonly CreateRouteHandler _handler;
     private readonly ILogger<CreateRouteConsumer> _logger;
     private readonly IValidator<CreateProcessEvent> _validator;
-    // private readonly CreateRouteEmitter _emitter;
+    private readonly CreateRouteEmitter _emitter;
 
-    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator/*, CreateRouteEmitter emitter*/)
+    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator, CreateRouteEmitter emitter)
     {
         _handler = handler;
         _logger = logger;
         _validator = validator;
-        // _emitter = emitter;
+        _emitter = emitter;
     }
 
     public async Task Consume(ConsumeContext<CreateProcessEvent> context)
     {
-        await HandleEventAsync(context.Message);
-    }
-    
-    public async Task HandleEventAsync(CreateProcessEvent evt)
-    {
-        // var evt = context.Message;
+        var evt = context.Message;
 
         _logger.LogInformation("[Consumer] Received CreateProcessEvent for CorrelationId={CorrelationId}", evt.CorrelationId);
 
@@ -83,6 +78,7 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
             _logger.LogInformation("[Consumer] Route created successfully for ProcessId={ProcessId}:\n{Route}",
                 payload.ProcessId, route.Value);
         }
-        // await _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
+        
+        await _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
     }
 }

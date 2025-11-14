@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
+using System.Security.Authentication;
 using FluentValidation;
 using MassTransit;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RouteEstimationService.Features.CreateRoute;
@@ -24,46 +26,39 @@ try
 
     Log.Information("Starting host");
 
-    var hostbuilder = Host.CreateDefaultBuilder(args)
+    var hostBuilder = Host.CreateDefaultBuilder(args)
         .UseSerilog()
-        .ConfigureServices((_, services) =>
+        .ConfigureServices((hostContext, services) =>
         {
             services.AddScoped<CreateRouteConsumer>();
             services.AddScoped<CreateRouteHandler>();
             services.AddScoped<IValidator<CreateProcessEvent>, CreateRouteValidator>();
+            services.AddScoped<CreateRouteEmitter>();
 
             services.AddMassTransit(x =>
             {
+                var rabbit = hostContext.Configuration.GetSection("RabbitMQ");
+                var host = rabbit.GetValue<string>("Host", "localhost");
+                var port = rabbit.GetValue<ushort>("Port", 5672);
+                var user = rabbit.GetValue<string>("Username", "guest");
+                var pass = rabbit.GetValue<string>("Password", "guest");
+
                 x.AddConsumer<CreateRouteConsumer>();
                 x.UsingRabbitMq((ctx, cfg) =>
                 {
-                    cfg.Host("localhost", "/", h => { h.Username("guest"); h.Password("guest"); });
+                    // Use host + host-port (host is usually 'localhost' for local Docker)
+                    cfg.Host(host, port, "/", h =>
+                    {
+                        h.Username(user);
+                        h.Password(pass);
+                    });
+
                     cfg.ReceiveEndpoint("estimation-requested", e => e.ConfigureConsumer<CreateRouteConsumer>(ctx));
                 });
             });
-            services.AddTransient<CreateRouteConsumer>();
         });
-    using var host = hostbuilder.Build();
+    using var host = hostBuilder.Build();
     
-    // Create a scope and simulate a CreateProcessEvent once on startup.
-    using var scope = host.Services.CreateScope();
-    var consumer = scope.ServiceProvider.GetRequiredService<CreateRouteConsumer>();
-
-    var testEvent = new CreateProcessEvent
-    {
-        ProcessId = 123,
-        CorrelationId = Guid.NewGuid(),
-        Origin = "45.7821345,126.5570674",
-        Destination = "45.7683933,126.5753343",
-        TimeOfTravel = TimeOnly.FromDateTime(DateTime.UtcNow),
-        CreatedAt = DateTime.UtcNow,
-        ModelVersion = "test-v1"
-    };
-
-    // Call the public handler to simulate an incoming message
-    await consumer.HandleEventAsync(testEvent);
-    
-    // Run the host (console lifetime) so the app keeps running as before
     await host.RunAsync();
 }
 catch (Exception ex)
