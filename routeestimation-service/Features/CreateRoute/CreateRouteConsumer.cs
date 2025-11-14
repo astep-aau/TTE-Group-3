@@ -1,16 +1,12 @@
-using System;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using FluentResults;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 using FluentValidation;
-using FluentResults;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Domain.Entities.Events;
-using RouteEstimationService.Features.EstimateTime;
-using RouteEstimationService.Helper;
 using ValidationResult = FluentValidation.Results.ValidationResult;     // to avoid conflict with System.ComponentModel.DataAnnotations.ValidationResult
 
 namespace RouteEstimationService.Features.CreateRoute;
@@ -20,12 +16,14 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
     private readonly CreateRouteHandler _handler;
     private readonly ILogger<CreateRouteConsumer> _logger;
     private readonly IValidator<CreateProcessEvent> _validator;
+    // private readonly CreateRouteEmitter _emitter;
 
-    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator)
+    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator/*, CreateRouteEmitter emitter*/)
     {
         _handler = handler;
         _logger = logger;
         _validator = validator;
+        // _emitter = emitter;
     }
 
     public async Task Consume(ConsumeContext<CreateProcessEvent> context)
@@ -62,30 +60,28 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
 
         // Handle the route creation
         _logger.LogInformation("[Consumer] Processing route for ProcessId={ProcessId}", payload.ProcessId);
-        var result = _handler.HandleAsync(payload);
-
-        if (!result.IsSuccess)
-        {
-            _logger.LogError("[Consumer] Route processing failed for ProcessId={ProcessId}: {Errors}", payload.ProcessId,
-                string.Join(", ", result.Errors));
-            return;
-        }
-        _logger.LogInformation(
-            "[Consumer] Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}", result.Value.RouteId,
-            payload.ProcessId, result.Value);
+        var route = _handler.HandleAsync(payload);
         
-        // Handle the time estimation
-        _logger.LogInformation("[Consumer] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, result.Value.RouteId);
-        var estimateTimeHandler = new EstimateTimeHandler(_logger);
-        var timeEstimationResult = estimateTimeHandler.EstimateTime(result.Value);
-        if (!timeEstimationResult.IsSuccess)
+        var routeMadeEvent = new RouteMadeEvent
         {
-            _logger.LogError("[Consumer] Time estimation failed for ProcessId={ProcessId}, RouteId={RouteId}: {Errors}", payload.ProcessId,
-                result.Value.RouteId, string.Join(", ", timeEstimationResult.Errors));
-            return;
+            RouteId = route.Value.RouteId,
+            CorrelationId = payload.CorrelationId,
+            ProcessId = payload.ProcessId,
+            NodeIds = route.IsSuccess ? route.Value.NodeIds : new List<string>(),
+            EdgeIds = route.IsSuccess ? route.Value.EdgeIds : new List<int>(),
+            EstimatedTimeSeconds = route.IsSuccess ? route.Value.EstimatedTimeSeconds : 0,
+        };
+
+        if (!route.IsSuccess)
+        {
+            _logger.LogWarning("[Consumer] Route creation failed for ProcessId={ProcessId}: {Errors}",
+                payload.ProcessId, string.Join(", ", route.Errors));
         }
-        _logger.LogInformation(
-            "[Consumer] Time estimation completed for ProcessId={ProcessId}, RouteId={RouteId} with EstimatedTime={EstimatedTime} seconds",
-            payload.ProcessId, result.Value.RouteId, timeEstimationResult.Value.EstimatedTimeSeconds);
+        else
+        {
+            _logger.LogInformation("[Consumer] Route created successfully for ProcessId={ProcessId}:\n{Route}",
+                payload.ProcessId, route.Value);
+        }
+        // await _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
     }
 }

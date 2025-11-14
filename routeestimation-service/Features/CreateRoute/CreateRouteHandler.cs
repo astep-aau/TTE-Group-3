@@ -3,6 +3,7 @@ using FluentResults;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Helper;
+using RouteEstimationService.Features.EstimateTime;
 
 namespace RouteEstimationService.Features.CreateRoute;
 
@@ -64,8 +65,24 @@ public class CreateRouteHandler
             _logger.LogWarning("[RouteHandler] Empty route path for ProcessId={ProcessId}", payload.ProcessId);
             return Result.Fail("Empty route path");
         }
-        _logger.LogInformation("[RouteHandler] Route with RouteID={RouteId} found for ProcessId={ProcessId}",
-            routeResult.Value.RouteId, payload.ProcessId);
+        _logger.LogInformation(
+            "[RouteHandler] Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}",
+            routeResult.Value.RouteId, payload.ProcessId, routeResult.Value);
+        
+        // Handle the time estimation
+        _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
+        var estimateTimeHandler = new EstimateTimeHandler(_logger);
+        routeResult = estimateTimeHandler.EstimateTime(routeResult.Value);
+        if (!routeResult.IsSuccess)
+        {
+            _logger.LogError("[RouteHandler] Time estimation failed for ProcessId={ProcessId}, RouteId={RouteId}: {Errors}", payload.ProcessId,
+                routeResult.Value.RouteId, string.Join(", ", routeResult.Errors));
+            return Result.Fail("Time estimation failed");
+        }
+        _logger.LogInformation(
+            "[RouteHandler] Time estimation completed for ProcessId={ProcessId}, RouteId={RouteId} with EstimatedTime={EstimatedTime} seconds",
+            payload.ProcessId, routeResult.Value.RouteId, routeResult.Value.EstimatedTimeSeconds);
+        
         return Result.Ok(routeResult.Value);
 
         // Function for parsing lat/lon for origin and destination (expecting "lat,lon")
