@@ -58,7 +58,7 @@ def vectorEmbedding():
     VectorEmbedding()
     return {"status": "Edge embeddings generated successfully."}
 
-@app.post("/Python/train-lstm")
-def trainLSTMModel():
-    TrainLSTMModel()
+@app.post("/Python/train-lstm/{ModelName}")
+def trainLSTMModel(ModelName: str):
+    TrainLSTMModel(ModelName)
     return {"status": "LSTM model trained successfully."}

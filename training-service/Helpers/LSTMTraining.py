@@ -10,7 +10,7 @@ from TrainingModel import LSTMModel
 import matplotlib.pyplot as plt
 import json
 
-def TrainLSTMModel():
+def TrainLSTMModel(ModelName):
     # -----------------------------
     # 1️⃣ Load and preprocess data
     # -----------------------------
@@ -107,7 +107,7 @@ def TrainLSTMModel():
             epochs_no_improve = 0
             normalization_dict = {"mean": mean_y, "std": std_y}
             torch.save({"state_dict": model.state_dict(), "normalization": normalization_dict},
-            os.path.join(output_dir, "best_model.pt"))
+            os.path.join(output_dir, f"{ModelName}.pt"))
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
