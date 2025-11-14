@@ -14,14 +14,14 @@ def convertEdgeToVector(embeddings, edges):
 
 def GetEdgeToVectors(edges):
     try:
-        InputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"   #Path to the embeddings file
+        InputFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"   #Path to the embeddings file
 
         if not edges: #Check if the data is empty, if it is raise an error.
             raise ValueError('No route data provided. (Empty Route)')
-    
+
         if not InputFile.is_file(): #Check if the file can be found, if not raise an error. 
-            raise FileNotFoundError(f'"edgeEmbeddings.emb" does not exist. (Missing dataset)')
-    
+            raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Missing dataset)')
+
         with open(InputFile, "r") as f:
             Embeddings = json.load(f)
 

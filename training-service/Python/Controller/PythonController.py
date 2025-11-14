@@ -6,15 +6,15 @@ from pathlib import Path
 import sys
 
 # Add Helpers folder to sys.path
-helpers_path = Path(__file__).parent.parent / "Helpers"
+helpers_path = Path(__file__).parent.parent / "Service"
 sys.path.append(str(helpers_path))
 
-from predictTime import predict_total_time  # your helper function
-from dataCreation import GenerateRoutes  # your helper function
-from timeCreation import EdgeTraversalTime  # your helper function
-from getEdgeToVectors import GetEdgeToVectors  # your helper function
-from Edge2Vec import VectorEmbedding  # your helper function
-from LSTMTraining import TrainLSTMModel  # your helper function
+from TrainingModels.predictTime import predict_total_time  # your helper function
+from DatasetCreation.dataCreation import GenerateRoutes  # your helper function
+from DatasetCreation.timeCreation import EdgeTraversalTime  # your helper function
+from DatasetCreation.getEdgeToVectors import GetEdgeToVectors  # your helper function
+from VectorEmbedding.Edge2Vec import VectorEmbedding  # your helper function
+from TrainingModels.LSTMTraining import TrainLSTMModel  # your helper function
 
 app = FastAPI(title="TTE Python API Controller")
 

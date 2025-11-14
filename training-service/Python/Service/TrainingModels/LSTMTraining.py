@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import numpy as np
 import os
 from pathlib import Path
-from TrainingModel import LSTMModel
+from .TrainingModel import LSTMModel
 import matplotlib.pyplot as plt
 import json
 
@@ -14,7 +14,7 @@ def TrainLSTMModel(ModelName):
     # -----------------------------
     # 1️⃣ Load and preprocess data
     # -----------------------------
-    json_path = Path(__file__).parent / "Datasets" / "TrainingSet.JSON"
+    json_path = Path(__file__).parent.parent / "Data" / "TrainingSet.JSON"
     with open(json_path, "r") as f:
         data = json.load(f)
 
@@ -68,7 +68,7 @@ def TrainLSTMModel(ModelName):
     epochs_no_improve = 0
     train_losses, val_losses = [], []
 
-    output_dir = Path(__file__).parent / "Datasets"
+    output_dir = Path(__file__).parent.parent / "Data" / "TrainedModels"
     os.makedirs(output_dir, exist_ok=True)
 
     for epoch in range(num_epochs):
@@ -120,6 +120,6 @@ def TrainLSTMModel(ModelName):
     plt.xlabel("Epoch")
     plt.ylabel("MAE")
     plt.legend()
-    plt.savefig(os.path.join(output_dir, "training_loss.png"))
+    plt.savefig(os.path.join(output_dir, f"{ModelName}_TrainingData.png"))
     plt.close()
     print("Training done, best model saved.")

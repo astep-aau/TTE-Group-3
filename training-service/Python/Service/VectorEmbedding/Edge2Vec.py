@@ -8,7 +8,7 @@ from pathlib import Path
 def modelTraining(GraphForEdges):
     node2vec = Node2Vec(    # Initialize Node2Vec model
         GraphForEdges,      # The graph
-        dimensions=5,       # Embedding dimensions
+        dimensions=64,       # Embedding dimensions
         walk_length=15,     # Length of each random walk
         num_walks=10,       # Number of walks per node
         p=1,                # Return hyperparameter
@@ -45,8 +45,8 @@ def VectorEmbedding():
         embeddingsDict = {}    
 
         # === File Paths ===
-        OutputFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
-        InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json"
+        OutputFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
+        InputFile = Path(__file__).parent.parent / "Data" / "RoadNetwork.json"
         if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
             raise FileNotFoundError(f'"{InputFile}" does not exist. (Missing Dataset)')
     

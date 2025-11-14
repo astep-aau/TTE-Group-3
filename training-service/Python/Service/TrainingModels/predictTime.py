@@ -1,14 +1,14 @@
 from pathlib import Path
 from torch.nn.utils.rnn import pad_sequence
 import torch
-from TrainingModel import LSTMModel
+from .TrainingModel import LSTMModel
 
 def predict_total_time(route, ModelName):
     # Load checkpoint
-    model_path = Path(__file__).parent / "Datasets" / f"{ModelName}.pt"
+    model_path = Path(__file__).parent.parent / "Data" / "TrainedModels" / f"{ModelName}.pt"
     checkpoint = torch.load(model_path, map_location="cpu")
 
-    model = LSTMModel(input_size=5)
+    model = LSTMModel(input_size=64)
     model.load_state_dict(checkpoint["state_dict"])
 
     normalization = checkpoint["normalization"]

@@ -95,11 +95,11 @@ namespace TrainingService.Services
             }
         }
 
-        public async Task LstmTraining()
+        public async Task LstmTraining(string ModelName)
         {
             StatusTracker.Status = "LSTM Training";
             using var client = new HttpClient();
-            string url = "http://127.0.0.1:8000/Python/train-lstm";
+            string url = $"http://127.0.0.1:8000/Python/train-lstm/{ModelName}";
 
             // POST request with no body
             HttpResponseMessage response = await client.PostAsync(url, null);
@@ -143,9 +143,9 @@ namespace TrainingService.Services
             }
             
             var json = JsonSerializer.Serialize(trainingSet);
-            File.WriteAllText("Helpers/Datasets/TrainingSet.JSON", json);
+            File.WriteAllText("../Python/Service/Data/TrainingSet.JSON", json);
 
-            await LstmTraining();
+            await LstmTraining(modelName);
             
             StatusTracker.Status = "Idle";
             return "Training Done";

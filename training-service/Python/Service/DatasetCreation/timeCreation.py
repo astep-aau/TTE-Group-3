@@ -58,8 +58,8 @@ def get_edge_time(route, traversalData, embeddings_dict):
     return times
 
 def EdgeTraversalTime(route):
-    InputFile = Path(__file__).parent / "Datasets" / "RoadTraversal.json"
-    EmbeddingFile = Path(__file__).parent / "Datasets" / "edgeEmbeddings.json"
+    InputFile = Path(__file__).parent.parent / "Data" / "RoadTraversal.json"
+    EmbeddingFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
     Route = route
 
     try:

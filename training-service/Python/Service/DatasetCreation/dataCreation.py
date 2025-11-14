@@ -38,7 +38,7 @@ def random_sequence(graph, lengthOfSequence):
     return sequence #Return the sequence when we are done.
 
 def GenerateRoutes(numberOfSequences, minLengthOfSequence, maxLengthOfSequence):
-    InputFile = Path(__file__).parent / "Datasets" / "RoadNetwork.json"
+    InputFile = Path(__file__).parent.parent / "Data" / "RoadNetwork.json"
     
     try:
         if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
