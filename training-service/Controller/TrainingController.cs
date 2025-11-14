@@ -14,18 +14,23 @@ namespace TrainingService.Controllers
         {
             _trainingService = trainingService;
         }
-        
-        [HttpPost("/Training/{modelName}")]
-        public async Task<IActionResult> StartTraining(string modelName){
+
+        [HttpPost("/Training/start-training")]
+        public async Task<IActionResult> StartTraining([FromBody] TrainingRequest request){
             try{
-                var trainingSet = await _trainingService.CreateTrainingSet(modelName);
-                return Ok(trainingSet);
+                var trainingSet = await _trainingService.CreateTrainingSet(
+                    request.ModelName, 
+                    request.NumberOfRoutes, 
+                    request.MinLength, 
+                    request.MaxLength
+                );
+                    return Ok(trainingSet);
             }catch (Exception ex){
                 return StatusCode(500, new { error = ex.Message });
             }
         }
 
-        [HttpGet("status")]
+        [HttpGet("Training/status")]
         public IActionResult GetStatus()
         {
             return Ok(new { StatusTracker.Status });

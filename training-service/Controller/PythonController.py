@@ -18,9 +18,9 @@ from LSTMTraining import TrainLSTMModel  # your helper function
 
 app = FastAPI(title="TTE Python API Controller")
 
-@app.post("/Python/predict-time")
-def PredictTime(edges: List[List[float]]):
-    return {"predicted_time": predict_total_time(edges)}
+@app.post("/Python/predict-time/{ModelName}")
+def PredictTime(edges: List[List[float]], ModelName: str):
+    return {"predicted_time": predict_total_time(edges, ModelName)}
 
 @app.get("/Python/generate-routes/{NumberOfSequences}/{MinLengthOfSequence}/{MaxLengthOfSequence}")
 def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOfSequence: int):

@@ -14,14 +14,10 @@ namespace TrainingService.Services
 
         
         //Første del af servicen, den står for at lave en rute/sekvens af veje.
-        public async Task<List<List<int>>> CreateRoute()
+        public async Task<List<List<int>>> CreateRoute(int numberOfSequences, int minLength, int maxLength)
         {
             try
             {
-                int numberOfSequences = 100;
-                int minLength = 5;
-                int maxLength = 150;
-
                 string url = $"http://127.0.0.1:8000/Python/generate-routes/{numberOfSequences}/{minLength}/{maxLength}";
 
                 // Send GET request
@@ -114,14 +110,18 @@ namespace TrainingService.Services
         }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
-        public async Task<string> CreateTrainingSet(string modelName)
+        public async Task<string> CreateTrainingSet(
+            string modelName,
+            int numberOfRoutes,
+            int minLength,
+            int maxLength)
         {
             //Laver et nyt object af vores Model "TrainingSet"
             TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
 
             //Laver alle vores Ruter
             StatusTracker.Status = "Creating Routes";
-            var edgeSequences = await CreateRoute();
+            var edgeSequences = await CreateRoute(numberOfRoutes, minLength, maxLength);
             StatusTracker.Status = $"Created {edgeSequences.Count} routes";
             //For hver rute tjekker vi hvad den totale tid er.
             var sequenceCounter = 1;
