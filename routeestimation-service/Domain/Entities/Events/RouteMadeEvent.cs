@@ -13,12 +13,11 @@ public record RouteMadeEvent
     public double DistanceKm { get; init; }
     public double TravelTimeMinutes { get; init; }
     
-    public List<RouteCoordinate> Path { get; init; } = new();
+    public IReadOnlyList<RouteCoordinate> Path { get; init; }
 }
 
 public record RouteCoordinate
 {
     public double Latitude { get; init; }
     public double Longitude { get; init; }
-    public int RouteResultId { get; init; } 
 }

@@ -93,7 +93,6 @@ public class CreateRouteHandler
             {
                 Latitude = coord.Lat,
                 Longitude = coord.Lon,
-                RouteResultId = payload.ProcessId
             });
         
         return Result.Ok(routeResult.Value);
