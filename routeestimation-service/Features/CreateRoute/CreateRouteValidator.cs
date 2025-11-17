@@ -24,7 +24,6 @@ public class CreateRouteValidator : AbstractValidator<CreateProcessEvent>
 
     private static bool BeLatLon(string? s)
     {
-        if (string.IsNullOrWhiteSpace(s)) return false;
         string[] parts = s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2) return false;
         return double.TryParse(parts[0], NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _)
