@@ -32,4 +32,5 @@ packages/
 # Temporary files
 *.tmp
 *.temp
+training-service/Helpers/Datasets/RoadTraversal.json
 pathfinding-service/Helper/.env
