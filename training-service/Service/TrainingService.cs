@@ -20,7 +20,7 @@ namespace TrainingService.Services
         {
             try
             {
-                int numberOfSequences = 10;
+                int numberOfSequences = 1000;
                 int minLength = 5;
                 int maxLength = 15;
 
