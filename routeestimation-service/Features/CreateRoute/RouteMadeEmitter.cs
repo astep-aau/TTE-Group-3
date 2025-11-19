@@ -6,11 +6,11 @@ using RouteEstimationService.Domain.Entities.Events;
 
 namespace RouteEstimationService.Features.CreateRoute;
 
-public class CreateRouteEmitter
+public class RouteMadeEmitter : IRouteMadeEmitter
 {
     private readonly IBus _bus;
 
-    public CreateRouteEmitter(IBus bus)
+    public RouteMadeEmitter(IBus bus)
     {
         _bus = bus;
     }
