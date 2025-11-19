@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
@@ -8,7 +9,7 @@ using RouteEstimationService.Features.EstimateTime;
 
 namespace RouteEstimationService.Features.CreateRoute;
 
-public class CreateRouteHandler
+public class CreateRouteHandler : ICreateRouteHandler
 {
     private readonly ILogger<CreateRouteHandler> _logger;
 
@@ -87,13 +88,21 @@ public class CreateRouteHandler
         _logger.LogInformation(
             "[RouteHandler] Mapping Node IDs to coordinates for ProcessId={ProcessId}, RouteId={RouteId}",
             payload.ProcessId, routeResult.Value.RouteId);
-        
-        routeResult.Value.Path = NodeIdToCoordinates.Map(routeResult.Value.NodeIds)
-            .ConvertAll(coord => new RouteCoordinate
-            {
-                Latitude = coord.Lat,
-                Longitude = coord.Lon,
-            });
+
+        try
+        {
+            routeResult.Value.Path = NodeIdToCoordinates.Map(routeResult.Value.NodeIds)
+                .ConvertAll(coord => new RouteCoordinate
+                {
+                    Latitude = coord.Lat,
+                    Longitude = coord.Lon,
+                });
+        }
+        catch (KeyNotFoundException e)
+        {
+            _logger.LogError(e, "[RouteHandler] Failed to map Node IDs to coordinates for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
+            return Result.Fail("Failed to map Node IDs to coordinates");
+        }
         
         return Result.Ok(routeResult.Value);
 

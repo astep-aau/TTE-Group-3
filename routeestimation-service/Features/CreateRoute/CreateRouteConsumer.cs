@@ -12,12 +12,12 @@ namespace RouteEstimationService.Features.CreateRoute;
 
 public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
 {
-    private readonly CreateRouteHandler _handler;
+    private readonly ICreateRouteHandler _handler;
     private readonly ILogger<CreateRouteConsumer> _logger;
     private readonly IValidator<CreateProcessEvent> _validator;
-    private readonly CreateRouteEmitter _emitter;
+    private readonly IRouteMadeEmitter _emitter;
 
-    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator, CreateRouteEmitter emitter)
+    public CreateRouteConsumer(ICreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator, IRouteMadeEmitter emitter)
     {
         _handler = handler;
         _logger = logger;
@@ -55,17 +55,6 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
         // Handle the route creation
         _logger.LogInformation("[Consumer] Processing route for ProcessId={ProcessId}", payload.ProcessId);
         var route = _handler.HandleAsync(payload);
-        
-        var routeMadeEvent = new RouteMadeEvent
-        {
-           Id = payload.ProcessId,
-           CorrelationId = payload.CorrelationId,
-           Origin = payload.Origin, 
-           Destination = payload.Destination,
-           DistanceKm = route.Value.DistanceKm, 
-           TravelTimeMinutes = route.Value.EstimatedTimeSeconds, 
-           Path = route.Value.Path 
-        };
 
         if (!route.IsSuccess)
         {
@@ -77,6 +66,17 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
             _logger.LogInformation("[Consumer] Route created successfully for ProcessId={ProcessId}:\n{Route}",
                 payload.ProcessId, route.Value);
         }
+        
+        var routeMadeEvent = new RouteMadeEvent
+        {
+            Id = payload.ProcessId,
+            CorrelationId = payload.CorrelationId,
+            Origin = payload.Origin, 
+            Destination = payload.Destination,
+            DistanceKm = route.Value.DistanceKm, 
+            TravelTimeMinutes = route.Value.EstimatedTimeSeconds, 
+            Path = route.Value.Path 
+        };
         
         await _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
     }
