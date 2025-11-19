@@ -34,3 +34,5 @@ packages/
 *.temp
 training-service/Helpers/Datasets/RoadTraversal.json
 pathfinding-service/Helper/.env
+__pycache__
+venv
