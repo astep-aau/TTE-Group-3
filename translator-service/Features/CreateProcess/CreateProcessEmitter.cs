@@ -3,7 +3,7 @@
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using MassTransit;
-using translator_service.Domain.Events;
+using RouteEstimationService.Domain.Entities.Events;
 
 namespace translator_service.Features.CreateProcess
 {

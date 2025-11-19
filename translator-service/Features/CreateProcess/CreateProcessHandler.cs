@@ -1,7 +1,7 @@
 using System.Diagnostics;
+using RouteEstimationService.Domain.Entities.Events;
 using translator_service.Domain.Entities;
 using translator_service.Features.GetRoute;
-using translator_service.Domain.Events;
 
 namespace translator_service.Features.CreateProcess;
 

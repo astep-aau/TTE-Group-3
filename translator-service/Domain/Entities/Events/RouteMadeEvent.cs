@@ -1,17 +1,11 @@
-namespace translator_service.Domain.Events;
+namespace RouteEstimationService.Domain.Entities.Events;
 
-public class RouteMadeEvent
-{
-    public Guid CorrelationId { get; set; }
-    public string Origin { get; set; } = string.Empty;
-    public string Destination { get; set; } = string.Empty;
-    public double DistanceKm { get; set; }
-    public double TravelTimeMinutes { get; set; }
-    public List<RouteCoordinateDto> Path { get; set; } = new();
-}
+public record RouteMadeEvent(
+    Guid CorrelationId,
+    string Origin,
+    string Destination,
+    double DistanceKm,
+    double TravelTimeMinutes,
+    IReadOnlyList<RouteCoordinate> Path);
 
-public class RouteCoordinateDto
-{
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-}
+public record RouteCoordinate(double Latitude, double Longitude);

@@ -53,10 +53,27 @@ builder.Services.AddSwaggerGen(options =>
 // Add MassTransit for service bus communication
 builder.Services.AddMassTransit(x =>
 {
-    // For development, you can use the in-memory transport.
-    x.UsingInMemory((context, cfg) =>
+    x.AddConsumer<GetRouteConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
     {
-        cfg.ConfigureEndpoints(context);
+        var rabbit = builder.Configuration.GetSection("RabbitMQ");
+        var host = rabbit.GetValue<string>("Host", "localhost");
+        var port = rabbit.GetValue<ushort>("Port", 5672);
+        var user = rabbit.GetValue<string>("Username", "guest");
+        var pass = rabbit.GetValue<string>("Password", "guest");
+        var routeMadeQueue = rabbit.GetValue<string>("RouteMadeQueue", "route-made");
+
+        cfg.Host(host, port, "/", h =>
+        {
+            h.Username(user);
+            h.Password(pass);
+        });
+
+        cfg.ReceiveEndpoint(routeMadeQueue, e =>
+        {
+            e.ConfigureConsumer<GetRouteConsumer>(context);
+        });
     });
 });
 
