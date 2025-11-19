@@ -19,7 +19,7 @@ def get_edge_time(route, traversalData, embeddings_dict):
 
     #If there is no available buckets, return empty list
     if not bucketsAvailable:
-        return []
+        return [], 0
 
     # Chose a random bucket from the available buckets
     chosen_bucket = random.choice(sorted(bucketsAvailable))
@@ -55,7 +55,7 @@ def get_edge_time(route, traversalData, embeddings_dict):
         closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket)) #Find the key closest to the chosen bucket
         times.append(traversals[str(closest_bucket)]["time to traverse (s)"])   #Append the time to the list of times
 
-    return times
+    return times, chosen_bucket
 
 def EdgeTraversalTime(route):
     InputFile = Path(__file__).parent / "Datasets" / "RoadTraversal.json"
@@ -86,7 +86,7 @@ def EdgeTraversalTime(route):
         if not embeddingData: #Check if travalsalData is empty, if it is raise an error.
             raise ValueError('"edgeEmbeddings.json" is empty or not loaded. (Empty Dataset)')    
     
-        times = get_edge_time(Route, traversalData, embeddingData)
-        return times
+        times, bucket = get_edge_time(Route, traversalData, embeddingData)
+        return {"times": times, "bucket": bucket}
     except Exception as e:
         raise RuntimeError(str(e))

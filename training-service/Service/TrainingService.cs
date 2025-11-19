@@ -46,10 +46,10 @@ namespace TrainingService.Services
         }
 
         // Anden del af servicen, den står for at tage alle vores edges og udregne en samlet tid for sekvensen
-        public async Task<double> CreateTimeForRouteAsync(List<int> edges)
+        public async Task<(double TotalTime, int Bucket)> CreateTimeForRouteAsync(List<int> edges)
         {
             if (edges == null || edges.Count == 0)
-                return 0.0;
+                return (0.0, 0);
 
             try
             {
@@ -62,15 +62,18 @@ namespace TrainingService.Services
 
                 string responseJson = await response.Content.ReadAsStringAsync();
 
-                // Deserialize as a list of doubles (or change if API returns an object)
-                var times = JsonSerializer.Deserialize<List<double>>(responseJson);
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+                
+                var times = JsonSerializer.Deserialize<List<double>>(root.GetProperty("times").GetRawText());
+                int bucket = root.GetProperty("bucket").GetInt32();
 
-                return times?.Sum() ?? 0.0;
+                return (times?.Sum() ?? 0.0, bucket);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error calling time API: {ex.Message}");
-                return 0.0;
+                return (0.0, 0);
             }
         }
 
@@ -133,13 +136,14 @@ namespace TrainingService.Services
                 sequenceCounter++;
                 Console.WriteLine($"Processing route: [{string.Join(", ", edges)}]");
 
-                double totalTime = await CreateTimeForRouteAsync(edges); // async call, but sequential
+                (double totalTime, int bucket) = await CreateTimeForRouteAsync(edges); // async call, but sequential
                 List<double[]> replacedEdges = await GetEdgeVectors(edges);
 
                 var seq = new Sequence
                 {
                     Edges = replacedEdges,
-                    TotalTime = totalTime
+                    TotalTime = totalTime,
+                    TimeBucket = bucket
                 };
                 
                 trainingSet.Sequences.Add(seq);

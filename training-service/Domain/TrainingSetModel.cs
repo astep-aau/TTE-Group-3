@@ -4,6 +4,7 @@ public class Sequence
 {
     public List<double[]> Edges { get; set; } = new List<double[]>();
     public double TotalTime { get; set; }
+    public int TimeBucket { get; set; }
 }
 
 public class TrainingSet
