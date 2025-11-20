@@ -1,9 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-COPY translator-service/ ./
+COPY . ./
 
-RUN dotnet restore translator-service.sln
+RUN dotnet restore translator-service.csproj
 RUN dotnet publish translator-service.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
