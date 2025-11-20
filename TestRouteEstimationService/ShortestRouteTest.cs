@@ -10,6 +10,9 @@ public class ShortestRouteTest
     // NOTE: These tests depend on static state (_nodeCache, _edgeCache, _isLoaded) in ShortestRouteFinder.
     // They should be run in order as the first test will load the JSON datasets and subsequent tests reuse them.
     // The static cache persists across test runs, which is acceptable for these integration-style tests.
+    
+    //IMPORTANT NOTE: These tests use known node IDs and expected routes/distances. Should the underlying dataset change,
+    //the expected values in these tests may need to be updated accordingly.
 
     #region Integration Tests - Known Valid Routes
 
