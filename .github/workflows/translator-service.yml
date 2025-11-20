@@ -70,6 +70,15 @@ jobs:
     env:
       K8S_NAMESPACE: cs-25-sw-5-03
       IMAGE: ${{ needs.build-and-push.outputs.image_sha }}
+
+      # Map secrets into env so they can be used in `if:` and in the step
+      DB_CONNECTION: ${{ secrets.TRANSLATOR_DB_CONNECTION }}
+      RABBIT_HOST: ${{ secrets.TRANSLATOR_RABBIT_HOST }}
+      RABBIT_PORT: ${{ secrets.TRANSLATOR_RABBIT_PORT }}
+      RABBIT_USERNAME: ${{ secrets.TRANSLATOR_RABBIT_USERNAME }}
+      RABBIT_PASSWORD: ${{ secrets.TRANSLATOR_RABBIT_PASSWORD }}
+      RABBIT_ROUTE_QUEUE: ${{ secrets.TRANSLATOR_RABBIT_ROUTE_MADE_QUEUE }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -78,16 +87,8 @@ jobs:
           kubectl auth whoami
           kubectl auth can-i update deployments -n "$K8S_NAMESPACE"
 
-      # Optional: keep these if you manage app config from CI
       - name: Apply translator-service secrets
-        if: ${{ secrets.TRANSLATOR_DB_CONNECTION != '' }}
-        env:
-          DB_CONNECTION: ${{ secrets.TRANSLATOR_DB_CONNECTION }}
-          RABBIT_HOST: ${{ secrets.TRANSLATOR_RABBIT_HOST }}
-          RABBIT_PORT: ${{ secrets.TRANSLATOR_RABBIT_PORT }}
-          RABBIT_USERNAME: ${{ secrets.TRANSLATOR_RABBIT_USERNAME }}
-          RABBIT_PASSWORD: ${{ secrets.TRANSLATOR_RABBIT_PASSWORD }}
-          RABBIT_ROUTE_QUEUE: ${{ secrets.TRANSLATOR_RABBIT_ROUTE_MADE_QUEUE }}
+        if: ${{ env.DB_CONNECTION != '' }}
         run: |
           kubectl create secret generic translator-service-config \
             --from-literal=ConnectionStrings__DefaultConnection="$DB_CONNECTION" \
