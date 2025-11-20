@@ -110,5 +110,5 @@ jobs:
           IMAGE: ${{ needs.build-and-push.outputs.image_sha }}
         run: |
           kubectl set image deployment/translator-service translator-service=$IMAGE -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/translator-service -n ${{ env.K8S_NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/translator-service -n ${{ env.K8S_NAMESPACE }} --timeout=59m
 
