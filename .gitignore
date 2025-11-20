@@ -33,3 +33,9 @@ packages/
 *.tmp
 *.temp
 training-service/Helpers/Datasets/RoadTraversal.json
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
