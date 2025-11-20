@@ -14,14 +14,44 @@ def TrainLSTMModel():
     # -----------------------------
     # 1️⃣ Load and preprocess data
     # -----------------------------
-    json_path = Path(__file__).parent / "Datasets" / "TrainingSet.JSON"
-    with open(json_path, "r") as f:
-        data = json.load(f)
+    dataset_dir = Path(__file__).parent / "Datasets"
+    # Look for day-specific files first
+    json_files = list(dataset_dir.glob("TrainingSet_Day*.json"))
+    
+    # Fallback to original file if no day files found
+    if not json_files:
+        print("No 'TrainingSet_Day*.json' files found. Falling back to 'TrainingSet.JSON'.")
+        json_files = [dataset_dir / "TrainingSet.JSON"]
+    else:
+        print(f"Found {len(json_files)} day-specific training files: {[f.name for f in json_files]}")
+
+    all_sequences = []
+    for json_path in json_files:
+        if json_path.exists():
+            with open(json_path, "r") as f:
+                data = json.load(f)
+                all_sequences.extend(data.get("Sequences", []))
 
     X, y = [], []
-    for seq in data["Sequences"]:
-        X.append(seq["Edges"])
+    for i, seq in enumerate(all_sequences):
+        time_bucket = seq.get("TimeBucket", 0)
+        day_of_week = seq.get("DayOfWeek", 0) # Default to 0 if missing
+        
+        # Sinusoidal encoding for time bucket (captures cyclical nature)
+        # 288 buckets per day (5-minute intervals)
+        time_sin = np.sin(2 * np.pi * time_bucket / 288)
+        time_cos = np.cos(2 * np.pi * time_bucket / 288)
+        
+        # Append sin/cos time encoding AND DayOfWeek to each edge vector
+        # Input features: [Original Features..., sin(time), cos(time), DayOfWeek]
+        modified_edges = [edge + [time_sin, time_cos, day_of_week] for edge in seq["Edges"]]
+        X.append(modified_edges)
         y.append(seq.get("TotalTime", 0))
+        
+        if i < 3:
+            print(f"Sequence {i}: TimeBucket={time_bucket} (sin={time_sin:.4f}, cos={time_cos:.4f}), DayOfWeek={day_of_week}")
+            print(f"  First Edge (with encoded time & day): {modified_edges[0]}")
+            print(f"  Target TotalTime (y): {seq.get('TotalTime', 0)}")
 
     max_len = max(len(seq) for seq in X)
     num_features = len(X[0][0])
@@ -42,7 +72,7 @@ def TrainLSTMModel():
     train_size = train_val_size - val_size
     train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-    train_loader = DataLoader(train_dataset, batch_size=20, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=30, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=100)
 
     # Normalization
@@ -63,7 +93,7 @@ def TrainLSTMModel():
     # 3️⃣ Training loop
     # -----------------------------
     num_epochs = 500
-    patience = 5
+    patience = 10
     best_val_loss = float("inf")
     epochs_no_improve = 0
     train_losses, val_losses = [], []
@@ -85,7 +115,7 @@ def TrainLSTMModel():
             optimizer.step()
             epoch_loss += loss.item() * xb.size(0)
         epoch_loss /= len(train_loader.dataset)
-        train_losses.append(epoch_loss)
+        train_losses.append(epoch_loss * std_y.item())
 
         # Validation
         model.eval()
@@ -106,8 +136,11 @@ def TrainLSTMModel():
             best_val_loss = val_loss
             epochs_no_improve = 0
             normalization_dict = {"mean": mean_y, "std": std_y}
-            torch.save({"state_dict": model.state_dict(), "normalization": normalization_dict},
-            os.path.join(output_dir, "best_model.pt"))
+            torch.save({
+                "state_dict": model.state_dict(),
+                "normalization": normalization_dict,
+                "input_size": num_features
+            }, os.path.join(output_dir, "best_model.pt"))
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:

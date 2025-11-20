@@ -1,14 +1,7 @@
-# Core ML/DL frameworks
-torch>=2.0.0
-numpy>=1.24.0
-
-# Graph processing
-networkx>=3.0
-node2vec>=0.4.6
-
-# Data visualization
-matplotlib>=3.7.0
-
-# Optional but recommended for better performance
-# Uncomment if you want GPU support:
-# torch with CUDA: install from https://pytorch.org/get-started/locally/
+fastapi
+uvicorn
+networkx
+node2vec
+matplotlib
+torch
+numpy

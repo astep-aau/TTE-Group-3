@@ -8,11 +8,11 @@ from pathlib import Path
 def modelTraining(GraphForEdges):
     node2vec = Node2Vec(    # Initialize Node2Vec model
         GraphForEdges,      # The graph
-        dimensions=5,       # Embedding dimensions
-        walk_length=15,     # Length of each random walk
-        num_walks=10,       # Number of walks per node
-        p=1,                # Return hyperparameter
-        q=1,                # Input hyperparameter
+        dimensions=16,       # Embedding dimensions
+        walk_length=50,     # Length of each random walk
+        num_walks=120,       # Number of walks per node
+        p=0.5,                # Return hyperparameter
+        q=2,                # Input hyperparameter
         workers=4           # Number of parallel workers
     )
     model = node2vec.fit(window=10, min_count=1, batch_words=4) # Train the model
@@ -75,3 +75,10 @@ def VectorEmbedding():
     except Exception as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
+
+if __name__ == "__main__":
+    print("Starting Edge2Vec embedding generation...")
+    print(f"Parameters: dimensions=16, walk_length=50, num_walks=120, p=0.5, q=2.0")
+    VectorEmbedding()
+    print("✓ Edge embeddings generated successfully!")
+    print("✓ Saved to: Helpers/Datasets/edgeEmbeddings.json")

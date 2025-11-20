@@ -22,7 +22,7 @@ namespace TrainingService.Services
             {
                 int numberOfSequences = 1000;
                 int minLength = 5;
-                int maxLength = 15;
+                int maxLength = 100;
 
                 using var client = new HttpClient();
                 string url = $"http://127.0.0.1:8000/Python/generate-routes/{numberOfSequences}/{minLength}/{maxLength}";
@@ -46,7 +46,7 @@ namespace TrainingService.Services
         }
 
         // Anden del af servicen, den står for at tage alle vores edges og udregne en samlet tid for sekvensen
-        public async Task<(double TotalTime, int Bucket)> CreateTimeForRouteAsync(List<int> edges)
+        public async Task<(double TotalTime, int Bucket)> CreateTimeForRouteAsync(List<int> edges, int dayNumber = 0)
         {
             if (edges == null || edges.Count == 0)
                 return (0.0, 0);
@@ -54,7 +54,10 @@ namespace TrainingService.Services
             try
             {
                 string url = "http://127.0.0.1:8000/Python/calculate-route-time";
-                string jsonBody = JsonSerializer.Serialize(edges);
+                
+                // Create request body with both route and day_number
+                var requestBody = new { route = edges, day_number = dayNumber };
+                string jsonBody = JsonSerializer.Serialize(requestBody);
                 using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
 
                 HttpResponseMessage response = await client.PostAsync(url, content);
@@ -120,42 +123,74 @@ namespace TrainingService.Services
         }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
-        public async Task<string> CreateTrainingSet()
+        public async Task<string> CreateTrainingSet(int dayNumber = 0)
         {
+            // If no specific day is provided, generate training sets for all 5 days (3-7)
+            if (dayNumber == 0)
+            {
+                Console.WriteLine("Generating training sets for all days (3-7)...");
+                for (int day = 3; day <= 7; day++)
+                {
+                    await CreateTrainingSetForDay(day);
+                }
+                
+                // After all day files are created, train the LSTM on all of them
+                await LstmTraining();
+                
+                StatusTracker.Status = "Idle";
+                return "Training Done - Created 5 day-specific training sets and trained LSTM";
+            }
+            else
+            {
+                // Generate for specific day only
+                await CreateTrainingSetForDay(dayNumber);
+                await LstmTraining();
+                
+                StatusTracker.Status = "Idle";
+                return $"Training Done - Created training set for Day {dayNumber}";
+            }
+        }
+        
+        private async Task CreateTrainingSetForDay(int dayNumber)
+        {
+            Console.WriteLine($"\n========== Creating Training Set for Day {dayNumber} ==========");
+            
             //Laver et nyt object af vores Model "TrainingSet"
             TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
 
             //Laver alle vores Ruter
-            StatusTracker.Status = "Creating Routes";
+            StatusTracker.Status = $"Day {dayNumber}: Creating Routes";
             var edgeSequences = await CreateRoute();
-            StatusTracker.Status = $"Created {edgeSequences.Count} routes";
+            StatusTracker.Status = $"Day {dayNumber}: Created {edgeSequences.Count} routes";
+            
             //For hver rute tjekker vi hvad den totale tid er.
             var sequenceCounter = 1;
             foreach (var edges in edgeSequences){
-                StatusTracker.Status = $"Processing sequence {sequenceCounter} of {edgeSequences.Count}";
+                StatusTracker.Status = $"Day {dayNumber}: Processing sequence {sequenceCounter} of {edgeSequences.Count}";
                 sequenceCounter++;
-                Console.WriteLine($"Processing route: [{string.Join(", ", edges)}]");
+                Console.WriteLine($"Day {dayNumber}: Processing route: [{string.Join(", ", edges)}]");
 
-                (double totalTime, int bucket) = await CreateTimeForRouteAsync(edges); // async call, but sequential
+                (double totalTime, int bucket) = await CreateTimeForRouteAsync(edges, dayNumber); // Pass dayNumber here
                 List<double[]> replacedEdges = await GetEdgeVectors(edges);
 
                 var seq = new Sequence
                 {
                     Edges = replacedEdges,
                     TotalTime = totalTime,
-                    TimeBucket = bucket
+                    TimeBucket = bucket,
+                    DayOfWeek = dayNumber
                 };
                 
                 trainingSet.Sequences.Add(seq);
             }
             
             var json = JsonSerializer.Serialize(trainingSet);
-            File.WriteAllText("Helpers/Datasets/TrainingSet.JSON", json);
-
-            await LstmTraining();
+            string filename = $"Helpers/Datasets/TrainingSet_Day{dayNumber}.json";
             
-            StatusTracker.Status = "Idle";
-            return "Training Done";
+            File.WriteAllText(filename, json);
+            Console.WriteLine($"✓ Training set for Day {dayNumber} saved to {filename}");
+            Console.WriteLine($"  - Total sequences: {trainingSet.Sequences.Count}");
+            Console.WriteLine($"  - Sequences with valid times: {trainingSet.Sequences.Count(s => s.TotalTime > 0)}");
         }
     }
 }

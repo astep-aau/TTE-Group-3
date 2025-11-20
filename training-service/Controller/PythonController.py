@@ -3,6 +3,7 @@ from http.client import HTTPException
 from fastapi import FastAPI
 from typing import List
 from pathlib import Path
+from pydantic import BaseModel
 import sys
 
 # Add Helpers folder to sys.path
@@ -18,9 +19,26 @@ from LSTMTraining import TrainLSTMModel  # your helper function
 
 app = FastAPI(title="TTE Python API Controller")
 
+# Request model for route time calculation
+class RouteTimeRequest(BaseModel):
+    route: List[int]
+    day_number: int = 0
+
+# Request model for LSTM prediction
+class PredictionRequest(BaseModel):
+    edges: List[List[float]]  # Route with embeddings already attached
+    time_bucket: int = 0       # 0-287 (5-minute intervals in a day)
+    day_of_week: int = 0       # 0-6 (Monday=0)
+
 @app.post("/Python/predict-time")
-def PredictTime(edges: List[List[float]]):
-    return {"predicted_time": predict_total_time(edges)}
+def PredictTime(request: PredictionRequest):
+    return {
+        "predicted_time": predict_total_time(
+            request.edges, 
+            request.time_bucket, 
+            request.day_of_week
+        )
+    }
 
 @app.get("/Python/generate-routes/{NumberOfSequences}/{MinLengthOfSequence}/{MaxLengthOfSequence}")
 def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOfSequence: int):
@@ -46,8 +64,8 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
     
 # Endpoint for a single route
 @app.post("/Python/calculate-route-time")
-def calculateRouteTime(route: List[int]):
-    return EdgeTraversalTime(route)
+def calculateRouteTime(request: RouteTimeRequest):
+    return EdgeTraversalTime(request.route, request.day_number)
 
 @app.post("/Python/vectors")
 def getEdgeToVectors(edges: List[int]):
