@@ -3,7 +3,7 @@ name: translator-service
 on:
   push:
     branches:
-      - main
+      - dev
     paths:
       - 'translator-service/**'
       - 'deploy/translator-service.yaml'
