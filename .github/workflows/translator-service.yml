@@ -1,0 +1,111 @@
+name: translator-service
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'translator-service/**'
+      - 'deploy/translator-service.yaml'
+      - '.github/workflows/translator-service.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/translator-service
+  K8S_NAMESPACE: cs-25-sw-5-03
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_sha: ${{ steps.image_tags.outputs.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore translator-service/translator-service.sln
+
+      - name: Build
+        run: dotnet build translator-service/translator-service.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test translator-service/translator-service.sln --configuration Release --no-build --verbosity normal
+
+      - name: Set image tags
+        id: image_tags
+        run: |
+          echo "sha=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "latest=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./translator-service
+          file: translator-service/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image_tags.outputs.sha }}
+            ${{ steps.image_tags.outputs.latest }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check permissions
+        run: |
+          echo "Checking runner identity and permissions..."
+          kubectl auth whoami
+          kubectl auth can-i update deployments -n ${{ env.K8S_NAMESPACE }}
+
+      - name: Apply translator-service secrets
+        env:
+          DB_CONNECTION: ${{ secrets.TRANSLATOR_DB_CONNECTION }}
+          RABBIT_HOST: ${{ secrets.TRANSLATOR_RABBIT_HOST }}
+          RABBIT_PORT: ${{ secrets.TRANSLATOR_RABBIT_PORT }}
+          RABBIT_USERNAME: ${{ secrets.TRANSLATOR_RABBIT_USERNAME }}
+          RABBIT_PASSWORD: ${{ secrets.TRANSLATOR_RABBIT_PASSWORD }}
+          RABBIT_ROUTE_QUEUE: ${{ secrets.TRANSLATOR_RABBIT_ROUTE_MADE_QUEUE }}
+        run: |
+          kubectl create secret generic translator-service-config \
+            --from-literal=ConnectionStrings__DefaultConnection="$DB_CONNECTION" \
+            --from-literal=RabbitMQ__Host="$RABBIT_HOST" \
+            --from-literal=RabbitMQ__Port="$RABBIT_PORT" \
+            --from-literal=RabbitMQ__Username="$RABBIT_USERNAME" \
+            --from-literal=RabbitMQ__Password="$RABBIT_PASSWORD" \
+            --from-literal=RabbitMQ__RouteMadeQueue="$RABBIT_ROUTE_QUEUE" \
+            --namespace ${{ env.K8S_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply deployment manifests
+        run: |
+          kubectl apply -f deploy/translator-service.yaml -n ${{ env.K8S_NAMESPACE }}
+
+      - name: Rollout restart deployment
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image_sha }}
+        run: |
+          kubectl set image deployment/translator-service translator-service=$IMAGE -n ${{ env.K8S_NAMESPACE }}
+          kubectl rollout status deployment/translator-service -n ${{ env.K8S_NAMESPACE }} --timeout=5m
+
