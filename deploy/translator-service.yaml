@@ -1,12 +1,3 @@
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: translator-stripprefix
-spec:
-  stripPrefix:
-    prefixes:
-      - /translator
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -69,7 +60,7 @@ metadata:
   name: translator-ingress
   annotations:
     kubernetes.io/ingress.class: "traefik"
-    traefik.ingress.kubernetes.io/router.middlewares: default-translator-stripprefix@kubernetescrd
+    traefik.ingress.kubernetes.io/rule-type: "PathPrefixStrip"
 spec:
   ingressClassName: traefik
   rules:
