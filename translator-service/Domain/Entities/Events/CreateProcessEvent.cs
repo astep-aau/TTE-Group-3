@@ -1,5 +1,5 @@
 
-namespace translator_service.Domain.Events;
+namespace RouteEstimationService.Domain.Entities.Events;
 
 using translator_service.Domain.Entities;
 

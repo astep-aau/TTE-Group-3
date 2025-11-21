@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Xunit;
 using Moq;
 using translator_service.Domain.Entities;
-using translator_service.Domain.Events;
+using RouteEstimationService.Domain.Entities.Events;
 using translator_service.Features.CreateProcess;
 using translator_service.Features.GetRoute;
 using MassTransit;

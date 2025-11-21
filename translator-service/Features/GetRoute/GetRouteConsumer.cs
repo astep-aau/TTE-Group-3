@@ -1,11 +1,11 @@
 using MassTransit;
 using Microsoft.Extensions.Logging;
-using translator_service.Domain.Events;
-using translator_service.Domain.Entities;
+using Entities = translator_service.Domain.Entities;
+using Events = RouteEstimationService.Domain.Entities.Events;
 
 namespace translator_service.Features.GetRoute;
 
-public class GetRouteConsumer : IConsumer<RouteMadeEvent>
+public class GetRouteConsumer : IConsumer<Events.RouteMadeEvent>
 {
     private readonly GetRouteHandler _routeHandler;
     private readonly ILogger<GetRouteConsumer> _logger;
@@ -18,7 +18,7 @@ public class GetRouteConsumer : IConsumer<RouteMadeEvent>
         _logger = logger;
     }
 
-    public async Task Consume(ConsumeContext<RouteMadeEvent> context)
+    public async Task Consume(ConsumeContext<Events.RouteMadeEvent> context)
     {
         var evt = context.Message;
 
@@ -26,14 +26,14 @@ public class GetRouteConsumer : IConsumer<RouteMadeEvent>
             "Received RouteMadeEvent for CorrelationId={CorrelationId} including travel time",
             evt.CorrelationId);
 
-        var route = new RouteResult
+        var route = new Entities.RouteResult
         {
             CorrelationId = evt.CorrelationId,
             Origin = evt.Origin,
             Destination = evt.Destination,
             DistanceKm = evt.DistanceKm,
             TravelTimeMinutes = evt.TravelTimeMinutes,
-            Path = evt.Path.Select(p => new RouteCoordinate
+            Path = evt.Path.Select(p => new Entities.RouteCoordinate
             {
                 Latitude = p.Latitude,
                 Longitude = p.Longitude
