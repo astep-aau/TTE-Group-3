@@ -106,8 +106,9 @@ def TrainLSTMModel(ModelName):
             best_val_loss = val_loss
             epochs_no_improve = 0
             normalization_dict = {"mean": mean_y, "std": std_y}
+            os.makedirs(output_dir / f"{ModelName}Model" , exist_ok=True)
             torch.save({"state_dict": model.state_dict(), "normalization": normalization_dict},
-            os.path.join(output_dir, f"{ModelName}.pt"))
+            os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt"))
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
@@ -120,6 +121,6 @@ def TrainLSTMModel(ModelName):
     plt.xlabel("Epoch")
     plt.ylabel("MAE")
     plt.legend()
-    plt.savefig(os.path.join(output_dir, f"{ModelName}_TrainingData.png"))
+    plt.savefig(os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}_TrainingData.png"))
     plt.close()
     print("Training done, best model saved.")

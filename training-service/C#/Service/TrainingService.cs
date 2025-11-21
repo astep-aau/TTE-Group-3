@@ -1,6 +1,7 @@
 using System.Text.Json;
 using trainingService.Domain;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace TrainingService.Services
 {
@@ -108,6 +109,16 @@ namespace TrainingService.Services
             string responseContent = await response.Content.ReadAsStringAsync();
             Console.WriteLine(responseContent);
         }
+
+        public async Task UploadTrainingSetAsync(TrainingSet trainingSet){
+            byte[] fileBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(trainingSet));
+            using var streamContent = new ByteArrayContent(fileBytes);
+            using var form = new MultipartFormDataContent();
+            form.Add(streamContent, "file", "TrainingSet.json"); // meaningful filename
+
+            HttpResponseMessage response = await client.PostAsync("http://127.0.0.1:8000/Python/TrainingFile", form);
+            response.EnsureSuccessStatusCode();
+    }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
         public async Task<string> CreateTrainingSet(
@@ -142,8 +153,7 @@ namespace TrainingService.Services
                 trainingSet.Sequences.Add(seq);
             }
             
-            var json = JsonSerializer.Serialize(trainingSet);
-            File.WriteAllText("../Python/Service/Data/TrainingSet.JSON", json);
+            await UploadTrainingSetAsync(trainingSet);
 
             await LstmTraining(modelName);
             

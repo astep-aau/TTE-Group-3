@@ -1,6 +1,7 @@
 # PythonController.py
 from http.client import HTTPException
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, File, UploadFile
 from typing import List
 from pathlib import Path
 import sys
@@ -62,3 +63,10 @@ def vectorEmbedding():
 def trainLSTMModel(ModelName: str):
     TrainLSTMModel(ModelName)
     return {"status": "LSTM model trained successfully."}
+
+@app.post("/Python/TrainingFile")
+async def upload(file: UploadFile = File(...)):
+    file_path = Path(__file__).parent.parent / "Service" / "Data" / "TrainingSet.json"
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+    return {"status": "ok", "file_saved": file_path}
