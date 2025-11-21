@@ -1,9 +1,0 @@
-fastapi
-uvicorn[standard]
-torch
-numpy
-matplotlib
-networkx
-node2vec
-gensim
-
