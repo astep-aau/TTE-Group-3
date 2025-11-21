@@ -6,11 +6,6 @@ metadata:
     app: translator-service
 spec:
   replicas: 1
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 0          # avoid surging a second pod under tight quota
-      maxUnavailable: 1    # delete old, then create new
   selector:
     matchLabels:
       app: translator-service
@@ -21,7 +16,7 @@ spec:
     spec:
       containers:
         - name: translator-service
-          image: ghcr.io/OWNER/translator-service:latest
+          image: ghcr.io/astep-aau/translator-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -33,11 +28,11 @@ spec:
                 name: translator-service-config
           resources:
             requests:
-              cpu: "50m"
               memory: "128Mi"
+              cpu: "50m"
             limits:
-              cpu: "100m"
               memory: "256Mi"
+              cpu: "100m"
           readinessProbe:
             httpGet:
               path: /api/health
@@ -49,6 +44,7 @@ spec:
               path: /api/health
               port: 8080
             initialDelaySeconds: 30
+            periodSeconds: 30
             periodSeconds: 30
 ---
 apiVersion: v1
@@ -65,3 +61,23 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: translator-ingress
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: cs-25-sw-5-03.cs-astep02.srv.aau.dk
+      http:
+        paths:
+          - path: /translator/
+            pathType: Prefix
+            backend:
+              service:
+                name: translator-service
+                port:
+                  number: 80
