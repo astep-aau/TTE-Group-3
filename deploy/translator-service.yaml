@@ -25,14 +25,14 @@ spec:
               value: http://+:8080
           envFrom:
             - secretRef:
-                name: translator-service-config
+                name: translator-service-config 
           resources:
             requests:
               memory: "128Mi"
-              cpu: "50m"
+              cpu: "25m"
             limits:
               memory: "256Mi"
-              cpu: "100m"
+              cpu: "50m"
           readinessProbe:
             httpGet:
               path: /api/health
