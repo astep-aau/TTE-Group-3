@@ -76,6 +76,7 @@ public class ShortestRouteFinder
                     openSet.Enqueue(neighbor, fScore[neighbor]);
             }
             // Backward traversal (only if edge is not oneway)
+            // TODO: Consider removing this part, as backward traversal may not be necessary and currently all edges are oneway
             for (int i = 0; i < node.BackwardEdges.Count; i++)
             {
                 int edgeId = node.BackwardEdges[i];
