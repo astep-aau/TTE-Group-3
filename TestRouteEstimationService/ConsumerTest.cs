@@ -1,5 +1,4 @@
 ﻿using FluentAssertions;
-using FluentResults;
 using FluentValidation;
 using FluentValidation.Results;
 using MassTransit;
@@ -8,7 +7,6 @@ using Moq;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Domain.Entities.Events;
 using RouteEstimationService.Features.CreateRoute;
-using Xunit;
 using ValidationResult = FluentValidation.Results.ValidationResult;
 
 namespace TestRouteEstimationService;
@@ -18,7 +16,6 @@ public class CreateRouteConsumerTests
     private readonly Mock<ICreateRouteHandler> _mockHandler;
     private readonly Mock<ILogger<CreateRouteConsumer>> _mockLogger;
     private readonly Mock<IValidator<CreateProcessEvent>> _mockValidator;
-    private readonly Mock<IRouteMadeEmitter> _mockEmitter;
     private readonly Mock<ConsumeContext<CreateProcessEvent>> _mockContext;
     private readonly CreateRouteConsumer _consumer;
 
@@ -27,14 +24,12 @@ public class CreateRouteConsumerTests
         _mockHandler = new Mock<ICreateRouteHandler>();
         _mockLogger = new Mock<ILogger<CreateRouteConsumer>>();
         _mockValidator = new Mock<IValidator<CreateProcessEvent>>();
-        _mockEmitter = new Mock<IRouteMadeEmitter>();
         _mockContext = new Mock<ConsumeContext<CreateProcessEvent>>();
 
         _consumer = new CreateRouteConsumer(
             _mockHandler.Object,
             _mockLogger.Object,
-            _mockValidator.Object,
-            _mockEmitter.Object
+            _mockValidator.Object
         );
     }
 
@@ -45,12 +40,12 @@ public class CreateRouteConsumerTests
     {
         // Arrange
         var correlationId = Guid.NewGuid();
-        var processId = 123;
-        var origin = "55.6761,12.5683";
-        var destination = "55.6863,12.5700";
+        const int processId = 123;
+        const string origin = "55.6761,12.5683";
+        const string destination = "55.6863,12.5700";
         var timeOfTravel = new TimeOnly(10, 30);
         var createdAt = DateTime.UtcNow;
-        var modelVersion = "v1.0";
+        const string modelVersion = "v1.0";
 
         var createProcessEvent = new CreateProcessEvent
         {
@@ -63,24 +58,11 @@ public class CreateRouteConsumerTests
             ModelVersion = modelVersion
         };
 
-        var expectedRouteResult = new RouteResult
-        {
-            NodeIds = new List<string> { "node1", "node2", "node3" },
-            EdgeIds = new List<int> { 1, 2 },
-            DistanceKm = 15.5,
-            EstimatedTimeSeconds = 25.5,
-            Path = new List<RouteCoordinate>
-            {
-                new() { Latitude = 55.6761, Longitude = 12.5683 },
-                new() { Latitude = 55.6863, Longitude = 12.5700 }
-            }
-        };
-
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Result.Ok(expectedRouteResult));
+            .Returns(Task.CompletedTask);
 
         // Act
         await _consumer.Consume(_mockContext.Object);
@@ -95,18 +77,6 @@ public class CreateRouteConsumerTests
             p.TimeOfTravel == timeOfTravel &&
             p.ModelVersion == modelVersion
         )), Times.Once);
-        _mockEmitter.Verify(e => e.EmitCreateProcessEventAsync(
-            It.Is<RouteMadeEvent>(evt =>
-                evt.Id == processId &&
-                evt.CorrelationId == correlationId &&
-                evt.Origin == origin &&
-                evt.Destination == destination &&
-                Math.Abs(evt.DistanceKm - expectedRouteResult.DistanceKm) < 0.001 &&
-                Math.Abs(evt.TravelTimeMinutes - expectedRouteResult.EstimatedTimeSeconds) < 0.001 &&
-                evt.Path == expectedRouteResult.Path
-            ),
-            CancellationToken.None
-        ), Times.Once);
     }
 
     [Fact]
@@ -127,18 +97,11 @@ public class CreateRouteConsumerTests
             ModelVersion = "v1.0"
         };
 
-        var routeResult = new RouteResult
-        {
-            DistanceKm = 10.0,
-            EstimatedTimeSeconds = 20.0,
-            Path = new List<RouteCoordinate>()
-        };
-
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Result.Ok(routeResult));
+            .Returns(Task.CompletedTask);
 
         // Act
         await _consumer.Consume(_mockContext.Object);
@@ -202,10 +165,10 @@ public class CreateRouteConsumerTests
 
         var validationFailures = new List<ValidationFailure>
         {
-            new ValidationFailure("ProcessId", "ProcessId must be greater than 0"),
-            new ValidationFailure("CorrelationId", "CorrelationId is required"),
-            new ValidationFailure("Origin", "Origin must be specified"),
-            new ValidationFailure("Destination", "Destination must be specified")
+            new ("ProcessId", "ProcessId must be greater than 0"),
+            new ("CorrelationId", "CorrelationId is required"),
+            new ("Origin", "Origin must be specified"),
+            new ("Destination", "Destination must be specified")
         };
 
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
@@ -218,7 +181,6 @@ public class CreateRouteConsumerTests
         // Assert
         _mockValidator.Verify(v => v.ValidateAsync(createProcessEvent, CancellationToken.None), Times.Once);
         _mockHandler.Verify(h => h.HandleAsync(It.IsAny<ProcessPayload>()), Times.Never);
-        _mockEmitter.Verify(e => e.EmitCreateProcessEventAsync(It.IsAny<RouteMadeEvent>(), CancellationToken.None), Times.Never);
     }
 
     [Fact]
@@ -279,7 +241,7 @@ public class CreateRouteConsumerTests
 
         var validationFailures = new List<ValidationFailure>
         {
-            new ValidationFailure("Origin", "Origin must be specified")
+            new ("Origin", "Origin must be specified")
         };
 
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
@@ -291,7 +253,6 @@ public class CreateRouteConsumerTests
 
         // Assert
         _mockHandler.Verify(h => h.HandleAsync(It.IsAny<ProcessPayload>()), Times.Never);
-        _mockEmitter.Verify(e => e.EmitCreateProcessEventAsync(It.IsAny<RouteMadeEvent>(), CancellationToken.None), Times.Never);
     }
 
     #endregion
@@ -316,13 +277,11 @@ public class CreateRouteConsumerTests
             ModelVersion = "v1.0"
         };
 
-        var failedResult = Result.Fail<RouteResult>("Route calculation failed");
-
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(failedResult);
+            .ThrowsAsync(new InvalidOperationException("Handler processing failed"));
 
         // Act
         var act = async () => await _consumer.Consume(_mockContext.Object);
@@ -351,13 +310,11 @@ public class CreateRouteConsumerTests
             ModelVersion = "v1.0"
         };
 
-        var failedResult = Result.Fail<RouteResult>("Invalid coordinates");
-
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(failedResult);
+            .ThrowsAsync(new InvalidOperationException("Handler processing failed"));
 
         // Act
         try
@@ -406,7 +363,7 @@ public class CreateRouteConsumerTests
 
         var validationFailures = new List<ValidationFailure>
         {
-            new ValidationFailure("Origin", "Origin and Destination must be different")
+            new ("Origin", "Origin and Destination must be different")
         };
 
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
@@ -435,25 +392,17 @@ public class CreateRouteConsumerTests
             ModelVersion = "v1.0"
         };
 
-        var routeResult = new RouteResult
-        {
-            DistanceKm = 0.0,
-            EstimatedTimeSeconds = 0.0,
-            Path = new List<RouteCoordinate>()
-        };
-
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Result.Ok(routeResult));
+            .Returns(Task.CompletedTask);
 
         // Act
         await _consumer.Consume(_mockContext.Object);
 
         // Assert
         _mockHandler.Verify(h => h.HandleAsync(It.IsAny<ProcessPayload>()), Times.Once);
-        _mockEmitter.Verify(e => e.EmitCreateProcessEventAsync(It.IsAny<RouteMadeEvent>(), CancellationToken.None), Times.Once);
     }
 
     [Fact]
@@ -471,19 +420,12 @@ public class CreateRouteConsumerTests
             CreatedAt = DateTime.UtcNow,
             ModelVersion = "v1.0"
         };
-
-        var routeResult = new RouteResult
-        {
-            DistanceKm = 100.0,
-            EstimatedTimeSeconds = 200.0,
-            Path = new List<RouteCoordinate>()
-        };
-
+        
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Result.Ok(routeResult));
+            .Returns(Task.CompletedTask);
 
         // Act
         await _consumer.Consume(_mockContext.Object);
@@ -519,23 +461,16 @@ public class CreateRouteConsumerTests
             ModelVersion = modelVersion
         };
 
-        var routeResult = new RouteResult
-        {
-            DistanceKm = 5.0,
-            EstimatedTimeSeconds = 10.0,
-            Path = new List<RouteCoordinate>()
-        };
-
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Result.Ok(routeResult));
+            .Returns(Task.CompletedTask);
 
         ProcessPayload? capturedPayload = null;
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
             .Callback<ProcessPayload>(p => capturedPayload = p)
-            .Returns(Result.Ok(routeResult));
+            .Returns(Task.CompletedTask);
 
         // Act
         await _consumer.Consume(_mockContext.Object);
@@ -550,65 +485,37 @@ public class CreateRouteConsumerTests
         capturedPayload.CreatedAt.Should().Be(createdAt);
         capturedPayload.ModelVersion.Should().Be(modelVersion);
     }
-
+    
     [Fact]
-    public async Task Consume_ShouldCorrectlyMapRouteResultToRouteMadeEvent()
+    public async Task Consume_WithValidEvent_ShouldCallHandler()
     {
         // Arrange
-        var correlationId = Guid.NewGuid();
-        const int processId = 54321;
-        const string origin = "55.6761,12.5683";
-        const string destination = "55.6863,12.5700";
-        const double distanceKm = 42.5;
-        const double estimatedTimeSeconds = 85.3;
-        var path = new List<RouteCoordinate>
-        {
-            new() { Latitude = 55.6761, Longitude = 12.5683 },
-            new() { Latitude = 55.68, Longitude = 12.57 },
-            new() { Latitude = 55.6863, Longitude = 12.5700 }
-        };
-
         var createProcessEvent = new CreateProcessEvent
         {
-            ProcessId = processId,
-            CorrelationId = correlationId,
-            Origin = origin,
-            Destination = destination,
+            ProcessId = 54321,
+            CorrelationId = Guid.NewGuid(),
+            Origin = "55.6761,12.5683",
+            Destination = "55.6863,12.5700",
             TimeOfTravel = new TimeOnly(9, 0),
             CreatedAt = DateTime.UtcNow,
             ModelVersion = "v1.0"
         };
-
-        var routeResult = new RouteResult
-        {
-            DistanceKm = distanceKm,
-            EstimatedTimeSeconds = estimatedTimeSeconds,
-            Path = path
-        };
-
+    
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Result.Ok(routeResult));
-
-        RouteMadeEvent? capturedEvent = null;
-        _mockEmitter.Setup(e => e.EmitCreateProcessEventAsync(It.IsAny<RouteMadeEvent>(), CancellationToken.None))
-            .Callback<RouteMadeEvent, CancellationToken>((evt, _) => capturedEvent = evt)
             .Returns(Task.CompletedTask);
-
+    
         // Act
         await _consumer.Consume(_mockContext.Object);
-
+    
         // Assert
-        capturedEvent.Should().NotBeNull();
-        capturedEvent!.Id.Should().Be(processId);
-        capturedEvent.CorrelationId.Should().Be(correlationId);
-        capturedEvent.Origin.Should().Be(origin);
-        capturedEvent.Destination.Should().Be(destination);
-        capturedEvent.DistanceKm.Should().BeApproximately(distanceKm, 0.001);
-        capturedEvent.TravelTimeMinutes.Should().BeApproximately(estimatedTimeSeconds, 0.001);
-        capturedEvent.Path.Should().BeEquivalentTo(path);
+        _mockHandler.Verify(h => h.HandleAsync(It.Is<ProcessPayload>(p =>
+            p.ProcessId == 54321 &&
+            p.Origin == "55.6761,12.5683" &&
+            p.Destination == "55.6863,12.5700"
+        )), Times.Once);
     }
 
     #endregion
@@ -641,13 +548,6 @@ public class CreateRouteConsumerTests
             ModelVersion = "v1.0"
         };
 
-        var routeResult = new RouteResult
-        {
-            DistanceKm = 10.0,
-            EstimatedTimeSeconds = 20.0,
-            Path = new List<RouteCoordinate>()
-        };
-
         var mockContext1 = new Mock<ConsumeContext<CreateProcessEvent>>();
         var mockContext2 = new Mock<ConsumeContext<CreateProcessEvent>>();
 
@@ -657,7 +557,7 @@ public class CreateRouteConsumerTests
         _mockValidator.Setup(v => v.ValidateAsync(It.IsAny<CreateProcessEvent>(), CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Result.Ok(routeResult));
+            .Returns(Task.CompletedTask);
 
         // Act
         await _consumer.Consume(mockContext1.Object);
@@ -665,7 +565,6 @@ public class CreateRouteConsumerTests
 
         // Assert
         _mockHandler.Verify(h => h.HandleAsync(It.IsAny<ProcessPayload>()), Times.Exactly(2));
-        _mockEmitter.Verify(e => e.EmitCreateProcessEventAsync(It.IsAny<RouteMadeEvent>(), CancellationToken.None), Times.Exactly(2));
     }
 
     #endregion

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
@@ -12,13 +13,15 @@ namespace RouteEstimationService.Features.CreateRoute;
 public class CreateRouteHandler : ICreateRouteHandler
 {
     private readonly ILogger<CreateRouteHandler> _logger;
+    private readonly IRouteMadeEmitter _emitter;
 
-    public CreateRouteHandler(ILogger<CreateRouteHandler> logger)
+    public CreateRouteHandler(ILogger<CreateRouteHandler> logger, IRouteMadeEmitter emitter)
     {
         _logger = logger;
+        _emitter = emitter;
     }
 
-    public Result<RouteResult> HandleAsync(ProcessPayload payload)
+    public Task HandleAsync(ProcessPayload payload)
     {
         _logger.LogInformation("[RouteHandler] Handling route for ProcessId={ProcessId}", payload.ProcessId);
 
@@ -29,13 +32,13 @@ public class CreateRouteHandler : ICreateRouteHandler
         if (origLat is null || origLon is null)
         {
             _logger.LogWarning("[RouteHandler] Invalid origin coordinates: {Origin} for ProcessId={ProcessId}", payload.Origin, payload.ProcessId);
-            return Result.Fail("Invalid origin coordinates");
+            throw new ArgumentException("Invalid origin coordinates");
         }
 
         if (destLat is null || destLon is null)
         {
             _logger.LogWarning("[RouteHandler] Invalid destination coordinates: {Destination} for ProcessId={ProcessId}", payload.Destination, payload.ProcessId);
-            return Result.Fail("Invalid destination coordinates");
+            throw new ArgumentException("Invalid destination coordinates");
         }
 
         // Find nearest nodes for origin and destination
@@ -49,7 +52,7 @@ public class CreateRouteHandler : ICreateRouteHandler
         catch (Exception ex)
         {
             _logger.LogError(ex, "[RouteHandler] Failed to determine nearest nodes for ProcessId={ProcessId}", payload.ProcessId);
-            return Result.Fail($"Failed to determine nearest nodes: {ex.Message}");
+            throw new ApplicationException("Failed to determine nearest nodes", ex);
         }
         _logger.LogInformation("[RouteHandler] Nearest nodes found: OriginNodeId={OriginNodeId}, DestinationNodeId={DestinationNodeId} for ProcessId={ProcessId}",
             originNodeId, destinationNodeId, payload.ProcessId);
@@ -60,12 +63,12 @@ public class CreateRouteHandler : ICreateRouteHandler
         if (!routeResult.IsSuccess)
         {
             _logger.LogWarning("[RouteHandler] No route found for ProcessId={ProcessId}", payload.ProcessId);
-            return Result.Fail("No route found");
+            throw new ApplicationException("No route found");
         }
         if (routeResult.Value.EdgeIds.Count == 0 || routeResult.Value.NodeIds.Count < 2)
         {
             _logger.LogWarning("[RouteHandler] Empty route path for ProcessId={ProcessId}", payload.ProcessId);
-            return Result.Fail("Empty route path");
+            throw new ApplicationException("Empty route path");
         }
         _logger.LogInformation(
             "[RouteHandler] Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}",
@@ -79,7 +82,7 @@ public class CreateRouteHandler : ICreateRouteHandler
         {
             _logger.LogError("[RouteHandler] Time estimation failed for ProcessId={ProcessId}, RouteId={RouteId}: {Errors}", payload.ProcessId,
                 routeResult.Value.RouteId, string.Join(", ", routeResult.Errors));
-            return Result.Fail("Time estimation failed");
+            throw new ApplicationException("Time estimation failed: " + string.Join(", ", routeResult.Errors));
         }
         _logger.LogInformation(
             "[RouteHandler] Time estimation completed for ProcessId={ProcessId}, RouteId={RouteId} with EstimatedTime={EstimatedTime} seconds",
@@ -101,11 +104,24 @@ public class CreateRouteHandler : ICreateRouteHandler
         catch (KeyNotFoundException e)
         {
             _logger.LogError(e, "[RouteHandler] Failed to map Node IDs to coordinates for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
-            return Result.Fail("Failed to map Node IDs to coordinates");
+            throw new ApplicationException("Failed to map Node IDs to coordinates", e);
         }
         
-        return Result.Ok(routeResult.Value);
+        var routeMadeEvent = new RouteMadeEvent
+        {
+            Id = payload.ProcessId,
+            CorrelationId = payload.CorrelationId,
+            Origin = payload.Origin, 
+            Destination = payload.Destination,
+            DistanceKm = routeResult.Value.DistanceKm, 
+            TravelTimeMinutes = routeResult.Value.EstimatedTimeSeconds, 
+            Path = routeResult.Value.Path 
+        };
+        
+        _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
 
+        return Task.CompletedTask;
+        
         // Function for parsing lat/lon for origin and destination (expecting "lat,lon")
         static (string lat, string lon) ParseLatLon(string s)
         {

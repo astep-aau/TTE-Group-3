@@ -1,9 +1,9 @@
-using FluentResults;
+using System.Threading.Tasks;
 using RouteEstimationService.Domain.Entities;
 
 namespace RouteEstimationService.Features.CreateRoute;
 
 public interface ICreateRouteHandler
 {
-    Result<RouteResult> HandleAsync(ProcessPayload payload);
+    Task HandleAsync(ProcessPayload payload);
 }

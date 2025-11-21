@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RouteEstimationService.Domain.Entities;
@@ -14,7 +13,7 @@ public class CreateRouteHandlerTests
     public CreateRouteHandlerTests()
     {
         _mockLogger = new Mock<ILogger<CreateRouteHandler>>();
-        _handler = new CreateRouteHandler(_mockLogger.Object);
+        _handler = new CreateRouteHandler(_mockLogger.Object, new Mock<IRouteMadeEmitter>().Object);
     }
 
     #region Logging Tests
@@ -117,7 +116,7 @@ public class CreateRouteHandlerTests
         // Act
         try
         {
-            var result = _handler.HandleAsync(payload);
+            _handler.HandleAsync(payload);
             // May fail on helper methods, but should process the payload
         }
         catch
@@ -154,7 +153,7 @@ public class CreateRouteHandlerTests
         // Act
         try
         {
-            var result = _handler.HandleAsync(payload);
+            _handler.HandleAsync(payload);
         }
         catch
         {
@@ -177,43 +176,36 @@ public class CreateRouteHandlerTests
     #region Multiple Calls Tests
 
     [Fact]
-    public void HandleAsync_CalledMultipleTimes_ShouldHandleEachIndependently()
+    public async Task HandleAsync_CalledMultipleTimes_ShouldHandleEachIndependently()
     {
-        // Arrange
+        // Arrange - Use coordinates that ARE in the dataset
         var payload1 = new ProcessPayload
         {
             ProcessId = 1,
-            Origin = "55.6761,12.5683",
-            Destination = "55.6863,12.5700",
             CorrelationId = Guid.NewGuid(),
+            Origin = "45.7821345,126.5570674",      // Valid China coordinates
+            Destination = "45.7601284,126.5864540", // Valid China coordinates
             TimeOfTravel = new TimeOnly(10, 0),
             CreatedAt = DateTime.UtcNow,
             ModelVersion = "v1.0"
         };
-
+    
         var payload2 = new ProcessPayload
         {
             ProcessId = 2,
-            Origin = "55.7000,12.6000",
-            Destination = "55.8000,12.7000",
             CorrelationId = Guid.NewGuid(),
-            TimeOfTravel = new TimeOnly(11, 0),
+            Origin = "45.7821345,126.5570674",      // Valid China coordinates
+            Destination = "45.7601284,126.5864540", // Valid China coordinates
+            TimeOfTravel = new TimeOnly(14, 0),
             CreatedAt = DateTime.UtcNow,
             ModelVersion = "v1.0"
         };
-
+    
         // Act
-        try
-        {
-            var result1 = _handler.HandleAsync(payload1);
-            var result2 = _handler.HandleAsync(payload2);
-        }
-        catch
-        {
-            // Expected - static helpers may throw
-        }
-
-        // Assert - both should be logged independently
+        await _handler.HandleAsync(payload1);
+        await _handler.HandleAsync(payload2);
+    
+        // Assert
         _mockLogger.Verify(
             x => x.Log(
                 LogLevel.Information,
@@ -221,8 +213,8 @@ public class CreateRouteHandlerTests
                 It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("ProcessId=1")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
-        
+            Times.AtLeastOnce);
+    
         _mockLogger.Verify(
             x => x.Log(
                 LogLevel.Information,
@@ -230,7 +222,7 @@ public class CreateRouteHandlerTests
                 It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("ProcessId=2")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+            Times.AtLeastOnce);
     }
 
     #endregion
@@ -260,7 +252,7 @@ public class CreateRouteHandlerTests
         // Act
         try
         {
-            var result = _handler.HandleAsync(payload);
+            _handler.HandleAsync(payload);
         }
         catch
         {
