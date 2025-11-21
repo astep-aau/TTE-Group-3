@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: routeestimation-service
+  labels:
+    app: routeestimation-service
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: routeestimation-service
+  template:
+    metadata:
+      labels:
+        app: routeestimation-service
+    spec:
+      containers:
+        - name: routeestimation-service
+          image: ghcr.io/OWNER/routeestimation-service:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: routeestimation-service-config
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "100m"
+              memory: "256Mi"
+
