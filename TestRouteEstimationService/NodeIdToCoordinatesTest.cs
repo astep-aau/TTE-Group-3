@@ -90,16 +90,23 @@ public class NodeIdToCoordinatesTest
     public void Map_CalledTwiceWithSameNodeIds_ShouldReturnConsistentResults()
     {
         // Arrange
-        string validNodeId = NearestNodeFinder.NearestNode("45.7821345", "126.5570674");
+        const string testLat = "45.7814988";
+        const string testLon = "126.5576157";
+        string validNodeId = NearestNodeFinder.NearestNode(testLat, testLon);
+        
+        // Get the actual coordinates for this node ID
+        bool found = NearestNodeFinder.TryGetCoordinates(validNodeId, out double expectedLat, out double expectedLon);
+        Assert.True(found);
         var nodeIds = new List<string> { validNodeId };
-
+        
         // Act
-        var result1 = NodeIdToCoordinates.Map(nodeIds);
-        var result2 = NodeIdToCoordinates.Map(nodeIds);
-
+        var result = NodeIdToCoordinates.Map(nodeIds);
+        
         // Assert
-        Assert.Equal(result1[0].Lat, result2[0].Lat);
-        Assert.Equal(result1[0].Lon, result2[0].Lon);
+        Assert.NotNull(result);
+        Assert.Single(result);
+        Assert.Equal(expectedLat, result[0].Lat);
+        Assert.Equal(expectedLon, result[0].Lon);
     }
 
     // Duplicate of the same Node IDs return the same coordinates multiple times
