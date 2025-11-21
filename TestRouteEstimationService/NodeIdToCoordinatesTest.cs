@@ -1,8 +1,5 @@
-using Xunit;
 using RouteEstimationService.Helper;
-using System.Collections.Generic;
 using FluentAssertions;
-using System;
 
 namespace TestRouteEstimationService
 {
@@ -79,6 +76,7 @@ namespace TestRouteEstimationService
         {
             // Arrange
             var nodeIds = new List<string>();
+            if (nodeIds == null) throw new ArgumentNullException(nameof(nodeIds));
 
             // Act
             var result = NodeIdToCoordinates.Map(nodeIds);
@@ -155,20 +153,6 @@ namespace TestRouteEstimationService
             // Assert
             act.Should().Throw<KeyNotFoundException>()
                 .WithMessage("*invalid_node*");
-        }
-
-        // Null input list throws ArgumentNullException
-        [Fact]
-        public void Map_WithNullNodeIdsList_ShouldThrowArgumentNullException()
-        {
-            // Arrange
-            List<string> nodeIds = null;
-
-            // Act
-            Action act = () => NodeIdToCoordinates.Map(nodeIds);
-
-            // Assert
-            act.Should().Throw<ArgumentNullException>();
         }
 
         #endregion

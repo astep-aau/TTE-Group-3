@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using FluentResults;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Domain.Entities.Events;

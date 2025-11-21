@@ -1,7 +1,6 @@
 using RouteEstimationService.Helper;
 using RouteEstimationService.Domain.Entities;
 using FluentResults;
-using Xunit;
 
 namespace TestRouteEstimationService;
 

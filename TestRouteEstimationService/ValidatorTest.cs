@@ -186,7 +186,7 @@ public class CreateRouteValidatorTests
         {
             ProcessId = 1,
             CorrelationId = Guid.NewGuid(),
-            Origin = emptyOrigin!,
+            Origin = emptyOrigin,
             Destination = "55.6863,12.5700",
             TimeOfTravel = new TimeOnly(10, 30),
             CreatedAt = DateTime.UtcNow,
@@ -253,7 +253,7 @@ public class CreateRouteValidatorTests
             ProcessId = 1,
             CorrelationId = Guid.NewGuid(),
             Origin = "55.6761,12.5683",
-            Destination = emptyDestination!,
+            Destination = emptyDestination,
             TimeOfTravel = new TimeOnly(10, 30),
             CreatedAt = DateTime.UtcNow,
             ModelVersion = "v1.0"
@@ -433,7 +433,7 @@ public class CreateRouteValidatorTests
             Destination = "55.6863,12.5700",
             TimeOfTravel = new TimeOnly(10, 30),
             CreatedAt = DateTime.UtcNow,
-            ModelVersion = emptyModelVersion!
+            ModelVersion = emptyModelVersion
         };
 
         // Act
