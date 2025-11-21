@@ -117,7 +117,7 @@ def TrainLSTMModel(ModelName):
                 break
 
     # Plot training loss
-    plt.plot(train_losses, label="Train Loss")
+    plt.plot([loss * std_y + mean_y for loss in train_losses], label="Train Loss")
     plt.plot(val_losses, label="Validation Loss")
     plt.xlabel("Epoch")
     plt.ylabel("MAE")
@@ -146,35 +146,76 @@ def TrainLSTMModel(ModelName):
 
     print(f"Final Test Loss: {test_loss:.4f}")
 
+    feedforward_layers = []
+    for layer in model.fc_layers:
+        cls_name = layer.__class__.__name__
+        if isinstance(layer, nn.Linear):
+            feedforward_layers.append(f"Linear({layer.in_features}->{layer.out_features})")
+        elif isinstance(layer, nn.ReLU):
+            feedforward_layers.append("ReLU")
+        elif isinstance(layer, nn.Dropout):
+            feedforward_layers.append(f"Dropout({layer.p})")
+
+    feedforward_layers_str = " → ".join(feedforward_layers)
+    dropout_value = [layer.p for layer in model.fc_layers if isinstance(layer, nn.Dropout)][0]
+
     # Generate README
     readme_path = output_dir / f"{ModelName}Model" / "README.md"
-    
-    readme_content = f"""# Training Results for {ModelName}
 
-**Date:** {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    readme_content = f"""# LSTM Model Training Results
 
-## Performance Metrics
-| Metric | Value (Seconds) |
-|--------|----------------|
-| **Best Validation Loss (MAE)** | {best_val_loss:.4f} |
-| **Test Loss (MAE)** | {test_loss:.4f} |
+**Date:** {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}  
+**Project:** {ModelName} - Route Time Estimation / Sequence Prediction  
 
-## Training Details
-- **Total Epochs:** {epoch + 1}
-- **Early Stopping Triggered:** {"Yes" if epochs_no_improve >= patience else "No"}
-- **Batch Size:** 20 (Train), 100 (Val/Test)
-- **Learning Rate:** 0.001
-- **Optimizer:** Adam
-- **Loss Function:** L1Loss (MAE)
+---
 
-## Model Architecture
-- **Input Features:** {num_features}
-- **Hidden Size:** 64
-- **Dropout:** 0.2
-- **Layers:** LSTM -> Linear(16) -> ReLU -> Dropout -> Linear(8) -> ReLU -> Dropout -> Linear(1)
+## 1️⃣ Dataset Overview
+| Property | Value |
+|----------|-------|
+| **Number of Samples (Train/Val/Test)** | {train_size} / {val_size} / {test_size} |
+| **Route Length (Smallest/Largest)** | {(X.abs().sum(dim=2) != 0).sum(dim=1).min().item()} / {(X.abs().sum(dim=2) != 0).sum(dim=1).max().item()} |
+| **Number of Input Features** | {num_features} |
+| **Output** | 1 (Route Time in Seconds) |
 
-## Training Progression
+---
+
+## 2️⃣ Model Architecture
+| Component | Configuration |
+|-----------|---------------|
+| **Model Type** | {type(model).__name__} |
+| **Input Features** | {num_features} |
+| **Hidden Size** | {model.lstm.hidden_size} |
+| **Dropout** | {dropout_value} |
+| **Feedforward Layers** | {feedforward_layers_str} |
+| **Total Parameters** | {sum(p.numel() for p in model.parameters())} |
+
+---
+
+## 3️⃣ Training Configuration
+| Property | Value |
+|----------|-------|
+| **Total Epochs** | {epoch + 1} |
+| **Early Stopping** | {"Yes" if epochs_no_improve >= patience else "No"} |
+| **Batch Size (Train / Val / Test)** | {train_loader.batch_size} / {val_loader.batch_size} / {test_loader.batch_size} |
+| **Optimizer** | {type(optimizer).__name__} |
+| **Learning Rate** | {optimizer.param_groups[0]['lr']} |
+| **Loss Function** | {type(criterion).__name__} |
+
+---
+
+## 4️⃣ Performance Metrics
+| Metric | Train | Validation | Test |
+|--------|-------|------------|------|
+| **MAE (Mean Absolute Error)** | {train_losses[-1] * std_y + mean_y:.2f} s | {val_loss:.2f} s | {test_loss:.2f} s |
+
+---
+
+## 5️⃣ Training Dynamics
+- **Loss Progression:** see plot below (train vs. validation loss)
+
 ![Training Plot]({ModelName}_TrainingData.png)
+
+---
 """
 
     with open(readme_path, "w") as f:
