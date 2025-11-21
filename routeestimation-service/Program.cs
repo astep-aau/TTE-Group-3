@@ -25,6 +25,7 @@ try
         {
             services.AddScoped<CreateRouteConsumer>();
             services.AddScoped<ICreateRouteHandler, CreateRouteHandler>();
+            services.AddScoped<IRouteMadeEmitter, RouteMadeEmitter>();
             services.AddScoped<IValidator<CreateProcessEvent>, CreateRouteValidator>();
 
             services.AddMassTransit(x =>
