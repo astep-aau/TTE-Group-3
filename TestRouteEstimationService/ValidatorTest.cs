@@ -1,4 +1,3 @@
-using FluentAssertions;
 using RouteEstimationService.Domain.Entities.Events;
 using RouteEstimationService.Features.CreateRoute;
 
@@ -29,8 +28,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     [Theory]
@@ -57,8 +56,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue($"'{origin}' and '{destination}' are valid coordinate formats");
-        result.Errors.Should().BeEmpty();
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     #endregion
@@ -88,8 +87,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e => 
+        Assert.False(result.IsValid);
+        Assert.Single(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.ProcessId) &&
             e.ErrorMessage == "[Validator] ProcessId must be greater than 0");
     }
@@ -117,7 +116,7 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        Assert.True(result.IsValid);
     }
 
     #endregion
@@ -143,8 +142,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e => 
+        Assert.False(result.IsValid);
+        Assert.Single(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.CorrelationId) &&
             e.ErrorMessage == "[Validator] CorrelationId is required");
     }
@@ -168,7 +167,7 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        Assert.True(result.IsValid);
     }
 
     #endregion
@@ -197,8 +196,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => 
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.Origin) &&
             e.ErrorMessage == "[Validator] Origin must be specified");
     }
@@ -231,8 +230,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => 
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.Origin) &&
             e.ErrorMessage == "[Validator] Origin must be in 'lat,lon' format with numeric values");
     }
@@ -263,8 +262,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => 
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.Destination) &&
             e.ErrorMessage == "[Validator] Destination must be specified");
     }
@@ -297,8 +296,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => 
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.Destination) &&
             e.ErrorMessage == "[Validator] Destination must be in 'lat,lon' format with numeric values");
     }
@@ -329,8 +328,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => 
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.Origin) &&
             e.ErrorMessage == "[Validator] Origin and Destination must be different");
     }
@@ -357,7 +356,7 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        Assert.True(result.IsValid);
     }
 
     #endregion
@@ -383,8 +382,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e => 
+        Assert.False(result.IsValid);
+        Assert.Single(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.CreatedAt) &&
             e.ErrorMessage == "[Validator] CreatedAt must be set");
     }
@@ -411,7 +410,7 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        Assert.True(result.IsValid);
     }
 
     #endregion
@@ -440,8 +439,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e => 
+        Assert.False(result.IsValid);
+        Assert.Single(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.ModelVersion) &&
             e.ErrorMessage == "[Validator] ModelVersion must be specified");
     }
@@ -470,7 +469,7 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        Assert.True(result.IsValid);
     }
 
     #endregion
@@ -497,21 +496,21 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(completelyInvalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
+        Assert.False(result.IsValid);
         
         // FluentValidation runs ALL validators, so empty strings trigger both NotEmpty AND BeLatLon
         // Origin: NotEmpty + Must(BeLatLon) = 2 errors
         // Destination: NotEmpty + Must(BeLatLon) = 2 errors
         // Plus Origin=Destination check = 1 more error
         // Total: ProcessId(1) + CorrelationId(1) + Origin(2) + Destination(2) + Origin=Destination(1) + CreatedAt(1) + ModelVersion(1) = 9
-        result.Errors.Should().HaveCount(9);
+        Assert.Equal(9, result.Errors.Count);
         
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateProcessEvent.ProcessId));
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateProcessEvent.CorrelationId));
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateProcessEvent.Origin));
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateProcessEvent.Destination));
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateProcessEvent.CreatedAt));
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateProcessEvent.ModelVersion));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateProcessEvent.ProcessId));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateProcessEvent.CorrelationId));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateProcessEvent.Origin));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateProcessEvent.Destination));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateProcessEvent.CreatedAt));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateProcessEvent.ModelVersion));
     }
 
     [Fact]
@@ -533,12 +532,12 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().HaveCountGreaterThanOrEqualTo(2);
-        result.Errors.Should().Contain(e => 
+        Assert.False(result.IsValid);
+        Assert.True(result.Errors.Count >= 2);
+        Assert.Contains(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.Origin) &&
             e.ErrorMessage.Contains("lat,lon"));
-        result.Errors.Should().Contain(e => 
+        Assert.Contains(result.Errors, e => 
             e.PropertyName == nameof(CreateProcessEvent.Destination) &&
             e.ErrorMessage.Contains("lat,lon"));
     }
@@ -570,7 +569,7 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(validEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeTrue($"'{coordinates}' should be cleaned by RemoveEmptyEntries and TrimEntries");
+        Assert.True(result.IsValid);
     }
 
     [Theory]
@@ -595,8 +594,8 @@ public class CreateRouteValidatorTests
         var result = await _validator.ValidateAsync(invalidEvent, CancellationToken.None);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateProcessEvent.Origin));
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateProcessEvent.Origin));
     }
 
     #endregion

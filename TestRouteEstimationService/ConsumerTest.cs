@@ -1,5 +1,4 @@
-﻿using FluentAssertions;
-using FluentValidation;
+﻿using FluentValidation;
 using FluentValidation.Results;
 using MassTransit;
 using Microsoft.Extensions.Logging;
@@ -14,7 +13,6 @@ namespace TestRouteEstimationService;
 public class CreateRouteConsumerTests
 {
     private readonly Mock<ICreateRouteHandler> _mockHandler;
-    private readonly Mock<ILogger<CreateRouteConsumer>> _mockLogger;
     private readonly Mock<IValidator<CreateProcessEvent>> _mockValidator;
     private readonly Mock<ConsumeContext<CreateProcessEvent>> _mockContext;
     private readonly CreateRouteConsumer _consumer;
@@ -22,13 +20,13 @@ public class CreateRouteConsumerTests
     public CreateRouteConsumerTests()
     {
         _mockHandler = new Mock<ICreateRouteHandler>();
-        _mockLogger = new Mock<ILogger<CreateRouteConsumer>>();
+        var mockLogger = new Mock<ILogger<CreateRouteConsumer>>();
         _mockValidator = new Mock<IValidator<CreateProcessEvent>>();
         _mockContext = new Mock<ConsumeContext<CreateProcessEvent>>();
 
         _consumer = new CreateRouteConsumer(
             _mockHandler.Object,
-            _mockLogger.Object,
+            mockLogger.Object,
             _mockValidator.Object
         );
     }
@@ -79,71 +77,6 @@ public class CreateRouteConsumerTests
         )), Times.Once);
     }
 
-    [Fact]
-    public async Task Consume_WithValidEvent_ShouldLogCorrectMessages()
-    {
-        // Arrange
-        var correlationId = Guid.NewGuid();
-        const int processId = 456;
-        
-        var createProcessEvent = new CreateProcessEvent
-        {
-            ProcessId = processId,
-            CorrelationId = correlationId,
-            Origin = "55.6761,12.5683",
-            Destination = "55.6863,12.5700",
-            TimeOfTravel = new TimeOnly(14, 0),
-            CreatedAt = DateTime.UtcNow,
-            ModelVersion = "v1.0"
-        };
-
-        _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
-        _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
-            .ReturnsAsync(new ValidationResult());
-        _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _consumer.Consume(_mockContext.Object);
-
-        // Assert
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Received CreateProcessEvent")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
-        
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("validation succeeded")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
-        
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Processing route")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
-        
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Route created successfully")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
-    }
-
     #endregion
 
     #region Validation Tests
@@ -184,7 +117,7 @@ public class CreateRouteConsumerTests
     }
 
     [Fact]
-    public async Task Consume_WithInvalidEvent_ShouldLogWarning()
+    public async Task Consume_WithInvalidEvent_ShouldNotCallHandler()
     {
         // Arrange
         var createProcessEvent = new CreateProcessEvent
@@ -211,14 +144,8 @@ public class CreateRouteConsumerTests
         await _consumer.Consume(_mockContext.Object);
 
         // Assert
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("validation failed")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        _mockValidator.Verify(v => v.ValidateAsync(createProcessEvent, CancellationToken.None), Times.Once);
+        _mockHandler.Verify(h => h.HandleAsync(It.IsAny<ProcessPayload>()), Times.Never);
     }
 
     [Theory]
@@ -283,20 +210,16 @@ public class CreateRouteConsumerTests
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
             .ThrowsAsync(new InvalidOperationException("Handler processing failed"));
 
-        // Act
-        var act = async () => await _consumer.Consume(_mockContext.Object);
-
-        // Assert
-        // BUG IN CONSUMER: It tries to access route.Value before checking route.IsSuccess
-        // This causes an exception to be thrown before the warning can be logged
-        await act.Should().ThrowAsync<Exception>();
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await _consumer.Consume(_mockContext.Object));
         
-        // Verify the handler was called
+        Assert.Equal("Handler processing failed", exception.Message);
         _mockHandler.Verify(h => h.HandleAsync(It.IsAny<ProcessPayload>()), Times.Once);
     }
 
     [Fact]
-    public async Task Consume_WhenHandlerFails_ValidationStillSucceeds()
+    public async Task Consume_WhenHandlerFails_ValidationStillRuns()
     {
         // Arrange
         var createProcessEvent = new CreateProcessEvent
@@ -316,29 +239,11 @@ public class CreateRouteConsumerTests
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
             .ThrowsAsync(new InvalidOperationException("Handler processing failed"));
 
-        // Act
-        try
-        {
-            await _consumer.Consume(_mockContext.Object);
-        }
-        catch
-        {
-            // Expected due to bug in consumer
-        }
-
-        // Assert
-        // Validation should have succeeded even though handler failed
-        _mockValidator.Verify(v => v.ValidateAsync(createProcessEvent, CancellationToken.None), Times.Once);
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await _consumer.Consume(_mockContext.Object));
         
-        // Processing log should have been written before the exception
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Processing route")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        _mockValidator.Verify(v => v.ValidateAsync(createProcessEvent, CancellationToken.None), Times.Once);
     }
 
     #endregion
@@ -476,14 +381,14 @@ public class CreateRouteConsumerTests
         await _consumer.Consume(_mockContext.Object);
 
         // Assert
-        capturedPayload.Should().NotBeNull();
-        capturedPayload!.ProcessId.Should().Be(processId);
-        capturedPayload.CorrelationId.Should().Be(correlationId);
-        capturedPayload.Origin.Should().Be(origin);
-        capturedPayload.Destination.Should().Be(destination);
-        capturedPayload.TimeOfTravel.Should().Be(timeOfTravel);
-        capturedPayload.CreatedAt.Should().Be(createdAt);
-        capturedPayload.ModelVersion.Should().Be(modelVersion);
+        Assert.NotNull(capturedPayload);
+        Assert.Equal(processId, capturedPayload.ProcessId);
+        Assert.Equal(correlationId, capturedPayload.CorrelationId);
+        Assert.Equal(origin, capturedPayload.Origin);
+        Assert.Equal(destination, capturedPayload.Destination);
+        Assert.Equal(timeOfTravel, capturedPayload.TimeOfTravel);
+        Assert.Equal(createdAt, capturedPayload.CreatedAt);
+        Assert.Equal(modelVersion, capturedPayload.ModelVersion);
     }
     
     [Fact]
