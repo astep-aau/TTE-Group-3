@@ -70,10 +70,10 @@ jobs:
       K8S_NAMESPACE: cs-25-sw-5-03
       IMAGE: ${{ needs.build-and-push.outputs.image_sha }}
 
-      RABBIT_HOST: ${{ secrets.ROUTEESTIMATION_RABBIT_HOST }}
-      RABBIT_PORT: ${{ secrets.ROUTEESTIMATION_RABBIT_PORT }}
-      RABBIT_USERNAME: ${{ secrets.ROUTEESTIMATION_RABBIT_USERNAME }}
-      RABBIT_PASSWORD: ${{ secrets.ROUTEESTIMATION_RABBIT_PASSWORD }}
+      RABBIT_HOST: ${{ secrets.TRANSLATOR_RABBIT_HOST }}
+      RABBIT_PORT: ${{ secrets.TRANSLATOR_RABBIT_PORT }}
+      RABBIT_USERNAME: ${{ secrets.TRANSLATOR_RABBIT_USERNAME }}
+      RABBIT_PASSWORD: ${{ secrets.TRANSLATOR_RABBIT_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
