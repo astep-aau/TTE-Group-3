@@ -369,8 +369,6 @@ public class CreateRouteConsumerTests
         _mockContext.Setup(c => c.Message).Returns(createProcessEvent);
         _mockValidator.Setup(v => v.ValidateAsync(createProcessEvent, CancellationToken.None))
             .ReturnsAsync(new ValidationResult());
-        _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))
-            .Returns(Task.CompletedTask);
 
         ProcessPayload? capturedPayload = null;
         _mockHandler.Setup(h => h.HandleAsync(It.IsAny<ProcessPayload>()))

@@ -20,7 +20,7 @@ public class CreateRouteHandler : ICreateRouteHandler
         _emitter = emitter;
     }
 
-    public Task HandleAsync(ProcessPayload payload)
+    public async Task HandleAsync(ProcessPayload payload)
     {
         _logger.LogInformation("[RouteHandler] Handling route for ProcessId={ProcessId}", payload.ProcessId);
 
@@ -113,14 +113,13 @@ public class CreateRouteHandler : ICreateRouteHandler
             Origin = payload.Origin, 
             Destination = payload.Destination,
             DistanceKm = routeResult.Value.DistanceKm, 
-            TravelTimeMinutes = routeResult.Value.EstimatedTimeSeconds, 
+            TravelTimeSeconds = routeResult.Value.EstimatedTimeSeconds, 
             Path = routeResult.Value.Path 
         };
         
-        _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
+        await _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
+        return;
 
-        return Task.CompletedTask;
-        
         // Function for parsing lat/lon for origin and destination (expecting "lat,lon")
         static (string lat, string lon) ParseLatLon(string s)
         {

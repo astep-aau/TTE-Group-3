@@ -73,7 +73,7 @@ public class NearestNodeFinder
                 if (rawLine == "node_id,longitude,latitude") continue;
                 string line = rawLine.Trim();
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                if ("#".StartsWith(line)) continue;
+                if (line.StartsWith("#")) continue;
 
                 string[] parts = line.Split(',');
                 if (parts.Length < 3) continue;
@@ -90,14 +90,11 @@ public class NearestNodeFinder
                 cache[id] = new NodeData { Lat = lat, Lon = lon };
             }
 
-            if (cache.Count == 0)
-                throw new Exception("No valid nodes with lat/lon found in file.csv.");
-
-            return cache;
+            return cache.Count == 0 ? throw new Exception("No valid nodes with lat/lon found in file.csv.") : cache;
         }
         catch (IOException ex)
         {
-            throw new Exception("Failed to load file.csv", ex);
+            throw new IOException("Failed to load file.csv", ex);
         }
     }
 

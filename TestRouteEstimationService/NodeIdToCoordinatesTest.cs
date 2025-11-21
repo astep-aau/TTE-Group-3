@@ -74,8 +74,8 @@ public class NodeIdToCoordinatesTest
     public void Map_WithEmptyList_ShouldReturnEmptyList()
     {
         // Arrange
+        // ReSharper disable once CollectionNeverUpdated.Local
         var nodeIds = new List<string>();
-        if (nodeIds == null) throw new ArgumentNullException(nameof(nodeIds));
 
         // Act
         var result = NodeIdToCoordinates.Map(nodeIds);

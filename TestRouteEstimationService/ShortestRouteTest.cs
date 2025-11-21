@@ -334,8 +334,8 @@ public class ShortestRouteTest
         if (forwardRoute.Value.NodeIds.Count <= 0 || reverseRoute.Value.NodeIds.Count <= 0) return;
         // Reverse route's nodes should be forward route's nodes in reverse order
         // ONLY if there are no one-way edges in the path
+        // ReSharper disable once CollectionNeverQueried.Local
         var forwardNodesReversed = new List<string>(forwardRoute.Value.NodeIds);
-        if (forwardNodesReversed == null) throw new ArgumentNullException(nameof(forwardNodesReversed));
         forwardNodesReversed.Reverse();
 
         // They MAY be equal (if no one-way edges) or MAY differ (if one-way edges exist)
