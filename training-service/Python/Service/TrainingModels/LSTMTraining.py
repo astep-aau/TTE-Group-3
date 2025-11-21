@@ -9,6 +9,7 @@ from pathlib import Path
 from .TrainingModel import LSTMModel
 import matplotlib.pyplot as plt
 import json
+import datetime
 
 def TrainLSTMModel(ModelName):
     # -----------------------------
@@ -123,4 +124,60 @@ def TrainLSTMModel(ModelName):
     plt.legend()
     plt.savefig(os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}_TrainingData.png"))
     plt.close()
-    print("Training done, best model saved.")
+
+    # -----------------------------
+    # 4️⃣ Test Evaluation & README
+    # -----------------------------
+    # Load best model state if available
+    if best_val_loss < float("inf"):
+        checkpoint = torch.load(os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt"))
+        model.load_state_dict(checkpoint["state_dict"])
+
+    test_loader = DataLoader(test_dataset, batch_size=100)
+    model.eval()
+    test_loss = 0
+    with torch.no_grad():
+        for xb, yb in test_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            out_norm = model(xb)
+            out_seconds = out_norm * std_y + mean_y
+            test_loss += criterion(out_seconds, yb) * xb.size(0)
+    test_loss /= len(test_loader.dataset)
+
+    print(f"Final Test Loss: {test_loss:.4f}")
+
+    # Generate README
+    readme_path = output_dir / f"{ModelName}Model" / "README.md"
+    
+    readme_content = f"""# Training Results for {ModelName}
+
+**Date:** {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+## Performance Metrics
+| Metric | Value (Seconds) |
+|--------|----------------|
+| **Best Validation Loss (MAE)** | {best_val_loss:.4f} |
+| **Test Loss (MAE)** | {test_loss:.4f} |
+
+## Training Details
+- **Total Epochs:** {epoch + 1}
+- **Early Stopping Triggered:** {"Yes" if epochs_no_improve >= patience else "No"}
+- **Batch Size:** 20 (Train), 100 (Val/Test)
+- **Learning Rate:** 0.001
+- **Optimizer:** Adam
+- **Loss Function:** L1Loss (MAE)
+
+## Model Architecture
+- **Input Features:** {num_features}
+- **Hidden Size:** 64
+- **Dropout:** 0.2
+- **Layers:** LSTM -> Linear(16) -> ReLU -> Dropout -> Linear(8) -> ReLU -> Dropout -> Linear(1)
+
+## Training Progression
+![Training Plot]({ModelName}_TrainingData.png)
+"""
+
+    with open(readme_path, "w") as f:
+        f.write(readme_content)
+
+    print(f"Training done. Results saved to {readme_path}")
