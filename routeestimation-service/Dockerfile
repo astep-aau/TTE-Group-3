@@ -6,7 +6,7 @@ COPY routeestimation-service/ ./
 RUN dotnet restore routeestimation-service.csproj
 RUN dotnet publish routeestimation-service.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/runtime:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
 COPY --from=build /app/publish .
