@@ -1,17 +1,23 @@
 using System.Text.Json;
-using trainingService.Domain;
+using TrainingService.Domain;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace TrainingService.Services
 {
     //Denne service 
-    public class TrainingService
+    public class Service
     {
-        private static readonly HttpClient client = new HttpClient
-        {
+        private static readonly HttpClient client = new HttpClient{
             Timeout = TimeSpan.FromMinutes(1000)
         };
+        private readonly ILogger<Service> _logger;
+        public Service(ILogger<Service> logger){
+            _logger = logger;
+        }
 
         
         //Første del af servicen, den står for at lave en rute/sekvens af veje.
@@ -19,6 +25,7 @@ namespace TrainingService.Services
         {
             try
             {
+                _logger.LogInformation("Creating routes");
                 string url = $"http://127.0.0.1:8000/Python/generate-routes/{numberOfSequences}/{minLength}/{maxLength}";
 
                 // Send GET request
@@ -29,6 +36,7 @@ namespace TrainingService.Services
 
                 List<List<int>> edgeSequences = JsonSerializer.Deserialize<List<List<int>>>(JsonDocument.Parse(responseJson).RootElement.GetProperty("routes").GetRawText())!;
 
+                _logger.LogInformation($"Created {edgeSequences.Count} routes.");
                 // Return the routes or empty list if null
                 return edgeSequences ?? new List<List<int>>();
             }
@@ -63,7 +71,7 @@ namespace TrainingService.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error calling time API: {ex.Message}");
+                _logger.LogError($"Error calling time API: {ex.Message}");
                 return 0.0;
             }
         }
@@ -91,7 +99,7 @@ namespace TrainingService.Services
             }
             catch (JsonException ex)
             {
-                Console.WriteLine($"[ERROR] Could not parse vector output: {ex.Message}");
+                _logger.LogError($"[ERROR] Could not parse vector output: {ex.Message}");
                 return new List<double[]>();
             }
         }
@@ -107,7 +115,7 @@ namespace TrainingService.Services
             response.EnsureSuccessStatusCode();
 
             string responseContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(responseContent);
+            _logger.LogInformation(responseContent);
         }
 
         public async Task UploadTrainingSetAsync(TrainingSet trainingSet){
@@ -135,23 +143,47 @@ namespace TrainingService.Services
             var edgeSequences = await CreateRoute(numberOfRoutes, minLength, maxLength);
             StatusTracker.Status = $"Created {edgeSequences.Count} routes";
             //For hver rute tjekker vi hvad den totale tid er.
-            var sequenceCounter = 1;
-            foreach (var edges in edgeSequences){
-                StatusTracker.Status = $"Processing sequence {sequenceCounter} of {edgeSequences.Count}";
-                sequenceCounter++;
-                Console.WriteLine($"Processing route: [{string.Join(", ", edges)}]");
+            
+            // Create a thread-safe collection for results
+            var resultsBag = new ConcurrentBag<Sequence>();
 
-                double totalTime = await CreateTimeForRouteAsync(edges); // async call, but sequential
-                List<double[]> replacedEdges = await GetEdgeVectors(edges);
+            // Semaphore to limit parallelism to 4 routes at a time
+            var semaphore = new SemaphoreSlim(4);
+            var totalStopwatch = Stopwatch.StartNew();
+            var tasks = new List<Task>();
+            int sequenceCounter = 1;            
+            foreach (var edges in edgeSequences)
+            {
+                await semaphore.WaitAsync();
 
-                var seq = new Sequence
+                tasks.Add(Task.Run(async () =>
                 {
-                    Edges = replacedEdges,
-                    TotalTime = totalTime
-                };
-                
-                trainingSet.Sequences.Add(seq);
+                    int currentSeq;
+                    lock (resultsBag) currentSeq = sequenceCounter++;
+                    var routeStopwatch = Stopwatch.StartNew();
+                    StatusTracker.Status = $"Processing sequence {currentSeq} of {edgeSequences.Count}";
+
+                    var seq = new Sequence
+                    {
+                        Edges = await GetEdgeVectors(edges),
+                        TotalTime = await CreateTimeForRouteAsync(edges)
+                    };
+
+                    resultsBag.Add(seq);
+                    _logger.LogInformation("[Route {RouteId}] Finished on thread {ThreadId} in {ElapsedMs} ms", 
+                        currentSeq, Thread.CurrentThread.ManagedThreadId, routeStopwatch.ElapsedMilliseconds);
+                    semaphore.Release();
+                }));
             }
+
+            // Wait for all routes to finish
+            await Task.WhenAll(tasks);
+            totalStopwatch.Stop();
+            _logger.LogInformation("All routes finished in {ElapsedMs} ms", 
+                totalStopwatch.ElapsedMilliseconds);
+
+            // Add all results to your training set
+            trainingSet.Sequences.AddRange(resultsBag);
             
             await UploadTrainingSetAsync(trainingSet);
 
