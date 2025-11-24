@@ -1,12 +1,15 @@
 using System.Text.Json;
-using trainingService.Domain;
+using TrainingService.Domain;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace TrainingService.Services
 {
     //Denne service 
-    public class TrainingService
+    public class Service
     {
         private static readonly HttpClient client = new HttpClient
         {
@@ -135,23 +138,46 @@ namespace TrainingService.Services
             var edgeSequences = await CreateRoute(numberOfRoutes, minLength, maxLength);
             StatusTracker.Status = $"Created {edgeSequences.Count} routes";
             //For hver rute tjekker vi hvad den totale tid er.
-            var sequenceCounter = 1;
-            foreach (var edges in edgeSequences){
-                StatusTracker.Status = $"Processing sequence {sequenceCounter} of {edgeSequences.Count}";
-                sequenceCounter++;
-                Console.WriteLine($"Processing route: [{string.Join(", ", edges)}]");
+            
+            // Create a thread-safe collection for results
+            var resultsBag = new ConcurrentBag<Sequence>();
 
-                double totalTime = await CreateTimeForRouteAsync(edges); // async call, but sequential
-                List<double[]> replacedEdges = await GetEdgeVectors(edges);
+            // Semaphore to limit parallelism to 4 routes at a time
+            var semaphore = new SemaphoreSlim(4);
+            var totalStopwatch = Stopwatch.StartNew();
+            var tasks = new List<Task>();
+            int sequenceCounter = 1;            
+            foreach (var edges in edgeSequences)
+            {
+                await semaphore.WaitAsync();
 
-                var seq = new Sequence
+                tasks.Add(Task.Run(async () =>
                 {
-                    Edges = replacedEdges,
-                    TotalTime = totalTime
-                };
-                
-                trainingSet.Sequences.Add(seq);
+                    int currentSeq;
+                    lock (resultsBag) currentSeq = sequenceCounter++;
+                    var routeStopwatch = Stopwatch.StartNew();
+                    StatusTracker.Status = $"Processing sequence {currentSeq} of {edgeSequences.Count}";
+
+                    var seq = new Sequence
+                    {
+                        Edges = await GetEdgeVectors(edges),
+                        TotalTime = await CreateTimeForRouteAsync(edges)
+                    };
+
+                    resultsBag.Add(seq);
+                    Console.WriteLine($"[Route {currentSeq}] Finished on thread {Thread.CurrentThread.ManagedThreadId} in {routeStopwatch.ElapsedMilliseconds} ms");
+
+                    semaphore.Release();
+                }));
             }
+
+            // Wait for all routes to finish
+            await Task.WhenAll(tasks);
+            totalStopwatch.Stop();
+            Console.WriteLine($"All routes finished in {totalStopwatch.ElapsedMilliseconds} ms");
+
+            // Add all results to your training set
+            trainingSet.Sequences.AddRange(resultsBag);
             
             await UploadTrainingSetAsync(trainingSet);
 

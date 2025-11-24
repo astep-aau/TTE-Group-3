@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace trainingService.Domain;
+namespace TrainingService.Domain;
 public class TrainingRequest
 {
     [Required] public string ModelName { get; set; } = string.Empty;
