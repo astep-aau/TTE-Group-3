@@ -49,7 +49,7 @@ namespace TrainingService.Services
             {
                 string url = "http://127.0.0.1:8000/Python/calculate-route-time";
                 string jsonBody = JsonSerializer.Serialize(edges);
-                using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+                using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 HttpResponseMessage response = await client.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();

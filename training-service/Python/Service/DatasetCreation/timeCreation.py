@@ -2,91 +2,190 @@ import json
 import random
 from pathlib import Path
 import numpy as np
+import sqlite3
 
-# === Function to calculate edge traversal times ===
+# Module-level cache
+_db_connection = None
+_embedding_cache = None
+_traversal_cache = None
+
+def _initialize_caches():
+    global _db_connection, _embedding_cache, _traversal_cache
+
+    # Initialize database connection and traversal cache
+    if _db_connection is None:
+        db_path = Path(__file__).parent.parent / "Data" / "traversals.db"
+
+        if not db_path.is_file():
+            raise FileNotFoundError('"traversals.db" does not exist. (Missing Dataset)')
+
+        try:
+            _db_connection = sqlite3.connect(db_path)
+            cursor = _db_connection.cursor()
+
+            # Verify traversals table exists and is not empty
+            cursor.execute("SELECT COUNT(*) FROM traversals;")
+            if cursor.fetchone()[0] == 0:
+                raise ValueError('"traversals" table is empty. (Empty Dataset)')
+
+            # Load all traversal data and group by node_id (edge)
+            cursor.execute("SELECT node_id, traversal_id, time_s FROM traversals ORDER BY node_id, traversal_id;")
+            rows = cursor.fetchall()
+
+            if not rows:
+                raise ValueError('"traversals" table has no data. (Empty Dataset)')
+
+            _traversal_cache = {}
+
+            # Group traversals by node_id (edge) and traversal_id (bucket)
+            for row in rows:
+                try:
+                    node_id = str(row[0])
+                    traversal_id = str(row[1])
+                    time_s = float(row[2])
+
+                    # Initialize edge entry if not exists
+                    if node_id not in _traversal_cache:
+                        _traversal_cache[node_id] = {"traversals": {}}
+
+                    # Add traversal bucket data
+                    _traversal_cache[node_id]["traversals"][traversal_id] = {
+                        "time to traverse (s)": time_s
+                    }
+
+                except (IndexError, ValueError, TypeError) as e:
+                    raise ValueError(f"Invalid data format in traversals table: {str(e)}")
+
+            # Verify we have valid data
+            if not _traversal_cache:
+                raise ValueError('"traversals" table contains no valid data. (Empty Dataset)')
+
+        except sqlite3.Error as e:
+            _db_connection = None
+            raise RuntimeError(f"Database error: {str(e)}")
+
+    # Initialize embedding cache (unchanged)
+    if _embedding_cache is None:
+        embedding_path = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
+
+        if not embedding_path.is_file():
+            raise FileNotFoundError('"edgeEmbeddings.json" does not exist. (Missing Dataset)')
+
+        try:
+            with open(embedding_path, "r") as f:
+                _embedding_cache = json.load(f)
+
+            if not _embedding_cache:
+                raise ValueError('"edgeEmbeddings.json" is empty or not loaded. (Empty Dataset)')
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in edgeEmbeddings.json: {str(e)}")
+        except IOError as e:
+            raise RuntimeError(f"Error reading edgeEmbeddings.json: {str(e)}")
+
 def get_edge_time(route, traversalData, embeddings_dict):
-    #Compute the traversal times for each edge in the route based on traversal data.
-    times = []                  #List of times for each edge in the route
-    bucketsAvailable = set()    #Creates a empty set with all available buckets for the route
+    """Compute traversal times for each edge in the route based on traversal data.
+    If an edge has no traversals, use the nearest embedding fallback; otherwise use final fallback 5.0.
+    """
+    times = []
+    bucketsAvailable = set()
 
-    for edgeId in route:                                           #This loop over each each in the route
-        edge = str(edgeId)                                         #Convert the edge to string as our data is JSON
-        if edge in traversalData:                                   #Check if the edge exist in the data
-            edgeData = traversalData[edge]                          #Get the data for that edge
-            edgeTraversals = edgeData.get("traversals", {})         #Get all traversals for that edge
-            bucketKeys = edgeTraversals.keys()                      #Get all bucket keys for that edge
-            bucketsAvailable.update(int(k) for k in bucketKeys)     #Add the buckets to the set of all buckets
+    # Collect all available buckets
+    for edgeId in route:
+        edge = str(edgeId)
+        if edge in traversalData:
+            edgeData = traversalData[edge]
+            edgeTraversals = edgeData.get("traversals", {})
+            bucketKeys = edgeTraversals.keys()
+            bucketsAvailable.update(int(k) for k in bucketKeys)
 
-    #If there is no available buckets, return empty list
     if not bucketsAvailable:
         return []
 
-    # Chose a random bucket from the available buckets
     chosen_bucket = random.choice(sorted(bucketsAvailable))
 
-    # Compute the time of each edge with the chosen bucket
-    for edgeId in route:                 #Loop over each edge in the route
-        edge = str(edgeId)               #Convert the edge to string
-          
-        if edge not in traversalData:    #If the edge is not in the data, assign a default time of 0.0 seconds
-            times.append(0.0)               
-            continue
-        
-        traversals = traversalData[edge].get("traversals", {})  #Get all traversals for that edge
-        if not traversals:                                     #If there is no data asign default 5.0 seconds 
-            vector = np.array(embeddings_dict[str(edgeId)], dtype=np.float32)
-            closest_edge = []
-            for other_edge_id, other_vector_list in embeddings_dict.items():
-                if other_edge_id == str(edgeId):
-                    continue  # skip itself
-                other_vector = np.array(other_vector_list, dtype=np.float32)
-                distance = np.linalg.norm(vector - other_vector)  # Euclidean distance
-                closest_edge.append((other_edge_id, distance))
-            closest_edge.sort(key=lambda x: x[1])
-            for other_edge_id, _ in closest_edge:
-                traversals = traversalData.get(other_edge_id, {}).get("traversals", {})
-                if traversals:
-                    break
-            if not traversals:
-                times.append(5.0)
+    for edgeId in route:
+        edge = str(edgeId)
+
+        # unified retrieval: missing edge or empty traversals -> fallback flow
+        traversals = traversalData.get(edge, {}).get("traversals", {})
+
+        if not traversals:
+            # Embedding-based fallback (nearest embedding). If missing or fails, use final fallback.
+            found_time = None
+            try:
+                if edge in embeddings_dict:
+                    target_vec = np.array(embeddings_dict[edge], dtype=np.float32)
+
+                    # Build arrays of other embeddings
+                    other_keys = []
+                    other_vecs = []
+                    for k, v in embeddings_dict.items():
+                        if k == edge:
+                            continue
+                        other_keys.append(k)
+                        other_vecs.append(v)
+
+                    if other_vecs:
+                        vecs = np.asarray(other_vecs, dtype=np.float32)  # shape (M, D)
+                        diffs = vecs - target_vec
+                        dists = np.linalg.norm(diffs, axis=1)
+                        order = np.argsort(dists)
+
+                        # Iterate from nearest to farthest until we find traversal data
+                        for idx in order:
+                            idx_int = int(idx)
+                            other_key = other_keys[idx_int]
+                            other_travs = traversalData.get(other_key, {}).get("traversals", {})
+                            if other_travs:
+                                bucket_keys = sorted(int(k) for k in other_travs.keys())
+                                closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket))
+                                try:
+                                    found_time = float(other_travs[str(closest_bucket)]["time to traverse (s)"])
+                                except Exception:
+                                    found_time = None
+                                if found_time is not None:
+                                    # Print the chosen nearest edge and its distance
+                                    try:
+                                        dist_val = float(dists[idx_int])
+                                        print(f"Nearest embedding for edge {edge} -> {other_key} (dist={dist_val:.4f})")
+                                    except Exception:
+                                        print(f"Nearest embedding for edge {edge} -> {other_key}")
+                                    break
+
+            except (KeyError, ValueError, TypeError, np.linalg.LinAlgError):
+                found_time = None
+
+            if found_time is not None:
+                times.append(found_time)
                 continue
 
-        bucket_keys = sorted(int(k) for k in traversals.keys())                 #Finding all bucket keys for that edge
-        closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket)) #Find the key closest to the chosen bucket
-        times.append(traversals[str(closest_bucket)]["time to traverse (s)"])   #Append the time to the list of times
+            # Final fallback
+            times.append(5.0)
+            continue
+
+        # Normal path: choose closest bucket for this edge
+        bucket_keys = sorted(int(k) for k in traversals.keys())
+        closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket))
+        times.append(float(traversals[str(closest_bucket)]["time to traverse (s)"]))
 
     return times
 
 def EdgeTraversalTime(route):
-    InputFile = Path(__file__).parent.parent / "Data" / "RoadTraversal.json"
-    EmbeddingFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
-    Route = route
+    """Calculate traversal times for a route with proper error handling."""
+    if not route:
+        raise ValueError('No route data provided. (Empty Route)')
 
     try:
-        if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
-            raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
-    
-        if not EmbeddingFile.is_file(): #Check if the file can be found, if not raise an error.
-            raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Mising Dataset)')
-
-        #Opens the file and load data into "traversalData".
-        with open(InputFile, "r") as f:
-            traversalData = json.load(f)
-
-        if not traversalData: #Check if travalsalData is empty, if it is raise an error.
-            raise ValueError('"RoadTraversal.json" is empty or not loaded. (Empty Dataset)')
-    
-        if not Route: #Check if the data is empty, if it is raise an error.
-            raise ValueError('No route data provided. (Empty Route)')
-    
-        # Load embeddings once outside the loop
-        with open(EmbeddingFile, "r") as f:
-            embeddingData = json.load(f)
-
-        if not embeddingData: #Check if travalsalData is empty, if it is raise an error.
-            raise ValueError('"edgeEmbeddings.json" is empty or not loaded. (Empty Dataset)')    
-    
-        times = get_edge_time(Route, traversalData, embeddingData)
+        _initialize_caches()
+        times = get_edge_time(route, _traversal_cache, _embedding_cache)
         return times
-    except Exception as e:
+
+    except FileNotFoundError as e:
         raise RuntimeError(str(e))
+    except ValueError as e:
+        raise RuntimeError(str(e))
+    except sqlite3.Error as e:
+        raise RuntimeError(f"Database error: {str(e)}")
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error: {str(e)}")
