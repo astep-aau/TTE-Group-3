@@ -145,12 +145,7 @@ def get_edge_time(route, traversalData, embeddings_dict):
                                 except Exception:
                                     found_time = None
                                 if found_time is not None:
-                                    # Print the chosen nearest edge and its distance
-                                    try:
-                                        dist_val = float(dists[idx_int])
-                                        print(f"Nearest embedding for edge {edge} -> {other_key} (dist={dist_val:.4f})")
-                                    except Exception:
-                                        print(f"Nearest embedding for edge {edge} -> {other_key}")
+                                    dist_val = float(dists[idx_int])
                                     break
 
             except (KeyError, ValueError, TypeError, np.linalg.LinAlgError):
