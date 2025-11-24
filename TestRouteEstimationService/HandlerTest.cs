@@ -7,13 +7,15 @@ namespace TestRouteEstimationService;
 
 public class CreateRouteHandlerTests
 {
+    private readonly Mock<ILogger<CreateRouteHandler>> _mockLogger;
     private readonly Mock<IRouteMadeEmitter> _mockEmitter;
     private readonly CreateRouteHandler _handler;
 
     public CreateRouteHandlerTests()
     {
+        _mockLogger = new Mock<ILogger<CreateRouteHandler>>();
         _mockEmitter = new Mock<IRouteMadeEmitter>();
-        _handler = new CreateRouteHandler(new Mock<ILogger<CreateRouteHandler>>().Object, _mockEmitter.Object);
+        _handler = new CreateRouteHandler(_mockLogger.Object, _mockEmitter.Object);
     }
 
     #region Invalid Coordinate Tests
@@ -76,9 +78,6 @@ public class CreateRouteHandlerTests
 
     #endregion
 
-<<<<<<< Updated upstream
-    #region Coordinate Format Parsing Tests
-=======
     #region Payload Property Tests
 
     [Fact]
@@ -226,7 +225,6 @@ public class CreateRouteHandlerTests
     #endregion
 
     #region Coordinate Format Tests (Parser Robustness)
->>>>>>> Stashed changes
 
     [Theory]
     [InlineData("55.6761, 12.5683")] // with space after comma
