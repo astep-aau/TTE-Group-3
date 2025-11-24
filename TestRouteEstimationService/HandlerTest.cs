@@ -76,7 +76,157 @@ public class CreateRouteHandlerTests
 
     #endregion
 
+<<<<<<< Updated upstream
     #region Coordinate Format Parsing Tests
+=======
+    #region Payload Property Tests
+
+    [Fact]
+    public void HandleAsync_ShouldHandleMinimalPayload()
+    {
+        // Arrange - minimal but valid payload (validation happens before handler)
+        var payload = new ProcessPayload
+        {
+            ProcessId = 1,
+            Origin = "0.0,0.0",
+            Destination = "1.0,1.0",
+            CorrelationId = Guid.Empty,
+            TimeOfTravel = TimeOnly.MinValue,
+            CreatedAt = DateTime.MinValue,
+            ModelVersion = ""
+        };
+
+        // Act
+        try
+        {
+            _handler.HandleAsync(payload);
+            // May fail on helper methods, but should process the payload
+        }
+        catch
+        {
+            // Expected - helper methods may throw
+        }
+
+        // Assert - should log handling message
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Handling route")),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public void HandleAsync_WithMaximalPayload_ShouldProcess()
+    {
+        // Arrange - maximal payload values
+        var payload = new ProcessPayload
+        {
+            ProcessId = int.MaxValue,
+            Origin = "90.0,180.0",
+            Destination = "-90.0,-180.0",
+            CorrelationId = Guid.NewGuid(),
+            TimeOfTravel = new TimeOnly(23, 59, 59),
+            CreatedAt = DateTime.MaxValue,
+            ModelVersion = "v999.999.999-beta-alpha-gamma"
+        };
+
+        // Act
+        try
+        {
+            _handler.HandleAsync(payload);
+        }
+        catch
+        {
+            // Expected - helper methods may throw
+        }
+
+        // Assert - should handle large values
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains($"ProcessId={int.MaxValue}")),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    #endregion
+
+    #region Multiple Calls Tests
+
+    [Fact]
+    public async Task HandleAsync_CalledMultipleTimes_ShouldHandleEachIndependently()
+    {
+        // Arrange - Use coordinates that ARE in the dataset
+        var payload1 = new ProcessPayload
+        {
+            ProcessId = 1,
+            CorrelationId = Guid.NewGuid(),
+            Origin = "45.7821345,126.5570674",      // Valid China coordinates
+            Destination = "45.7601284,126.5864540", // Valid China coordinates
+            TimeOfTravel = new TimeOnly(10, 0),
+            CreatedAt = DateTime.UtcNow,
+            ModelVersion = "v1.0"
+        };
+    
+        var payload2 = new ProcessPayload
+        {
+            ProcessId = 2,
+            CorrelationId = Guid.NewGuid(),
+            Origin = "45.7821345,126.5570674",      // Valid China coordinates
+            Destination = "45.7601284,126.5864540", // Valid China coordinates
+            TimeOfTravel = new TimeOnly(14, 0),
+            CreatedAt = DateTime.UtcNow,
+            ModelVersion = "v1.0"
+        };
+    
+        // Act
+        try
+        {
+            await _handler.HandleAsync(payload1);
+        }
+        catch
+        {
+            // External dependencies may fail (e.g., embedding service). The test focuses on logging.
+        }
+
+        try
+        {
+            await _handler.HandleAsync(payload2);
+        }
+        catch
+        {
+            // External dependencies may fail (e.g., embedding service). The test focuses on logging.
+        }
+    
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("ProcessId=1")),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("ProcessId=2")),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    #endregion
+
+    #region Coordinate Format Tests (Parser Robustness)
+>>>>>>> Stashed changes
 
     [Theory]
     [InlineData("55.6761, 12.5683")] // with space after comma

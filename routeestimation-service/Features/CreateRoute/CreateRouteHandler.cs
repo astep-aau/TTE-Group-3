@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
@@ -69,20 +70,26 @@ public class CreateRouteHandler : ICreateRouteHandler
             _logger.LogWarning("[RouteHandler] Empty route path for ProcessId={ProcessId}", payload.ProcessId);
             throw new ApplicationException("Empty route path");
         }
+        var route = routeResult.Value;
         _logger.LogInformation(
             "[RouteHandler] Route processed successfully for ProcessId={ProcessId} and created the route with RouteId={RouteId}:\n{Route}",
-            payload.ProcessId, routeResult.Value.RouteId, routeResult.Value);
+            payload.ProcessId, route.RouteId, route);
         
         // Handle the time estimation
         _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
         var estimateTimeHandler = new EstimateTimeHandler(_logger);
-        routeResult = estimateTimeHandler.EstimateTime(routeResult.Value);
-        if (!routeResult.IsSuccess)
+        var estimationResult = estimateTimeHandler.EstimateTime(route);
+        if (!estimationResult.IsSuccess)
         {
+            string errorMessage = string.Join(", ", estimationResult.Errors.Select(e => e.Message).Where(m => !string.IsNullOrWhiteSpace(m)));
+            if (string.IsNullOrWhiteSpace(errorMessage))
+                errorMessage = string.Join(", ", estimationResult.Errors);
+
             _logger.LogError("[RouteHandler] Time estimation failed for ProcessId={ProcessId}, RouteId={RouteId}: {Errors}", payload.ProcessId,
-                routeResult.Value.RouteId, string.Join(", ", routeResult.Errors));
-            throw new ApplicationException("Time estimation failed: " + string.Join(", ", routeResult.Errors));
+                route.RouteId, errorMessage);
+            throw new ApplicationException("Time estimation failed: " + errorMessage);
         }
+        routeResult = estimationResult;
         _logger.LogInformation(
             "[RouteHandler] Time estimation completed for ProcessId={ProcessId}, RouteId={RouteId} with EstimatedTime={EstimatedTime} seconds",
             payload.ProcessId, routeResult.Value.RouteId, routeResult.Value.EstimatedTimeSeconds);

@@ -1,0 +1,39 @@
+name: .NET
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+
+jobs:
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: routeestimation
+            test_project: TestRouteEstimationService/TestRouteEstimationService.csproj
+          - service: translator
+            test_project: TestTranslatorService/TestTranslatorService.csproj
+          - service: state
+            test_project: state-service/state-service.Tests/state-service.Tests.csproj
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ matrix.test_project }}
+
+      - name: Build
+        run: dotnet build ${{ matrix.test_project }} --no-restore
+
+      - name: Test
+        run: dotnet test ${{ matrix.test_project }} --no-build --verbosity normal
+
