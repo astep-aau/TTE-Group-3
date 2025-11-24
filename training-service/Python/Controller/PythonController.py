@@ -1,6 +1,5 @@
-from http.client import HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException
 import os
-from fastapi import FastAPI, File, UploadFile
 from typing import List
 from pathlib import Path
 import sys
@@ -54,7 +53,10 @@ def _initialize_resources():
         # Verify traversals table exists and is not empty
         cursor.execute("SELECT COUNT(*) FROM traversals;")
         if cursor.fetchone()[0] == 0:
+            cursor.close()
             raise ValueError('"traversals" table is empty. (Empty Dataset)')
+        
+        cursor.close()  # Close cursor after validation
 
         print(f"Database connected successfully with indexed lookups", file=sys.stderr)
 
