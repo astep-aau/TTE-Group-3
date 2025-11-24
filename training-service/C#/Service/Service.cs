@@ -11,10 +11,13 @@ namespace TrainingService.Services
     //Denne service 
     public class Service
     {
-        private static readonly HttpClient client = new HttpClient
-        {
+        private static readonly HttpClient client = new HttpClient{
             Timeout = TimeSpan.FromMinutes(1000)
         };
+        private readonly ILogger<Service> _logger;
+        public Service(ILogger<Service> logger){
+            _logger = logger;
+        }
 
         
         //Første del af servicen, den står for at lave en rute/sekvens af veje.
@@ -22,6 +25,7 @@ namespace TrainingService.Services
         {
             try
             {
+                _logger.LogInformation("Creating routes");
                 string url = $"http://127.0.0.1:8000/Python/generate-routes/{numberOfSequences}/{minLength}/{maxLength}";
 
                 // Send GET request
@@ -32,6 +36,7 @@ namespace TrainingService.Services
 
                 List<List<int>> edgeSequences = JsonSerializer.Deserialize<List<List<int>>>(JsonDocument.Parse(responseJson).RootElement.GetProperty("routes").GetRawText())!;
 
+                _logger.LogInformation($"Created {edgeSequences.Count} routes.");
                 // Return the routes or empty list if null
                 return edgeSequences ?? new List<List<int>>();
             }
@@ -66,7 +71,7 @@ namespace TrainingService.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error calling time API: {ex.Message}");
+                _logger.LogError($"Error calling time API: {ex.Message}");
                 return 0.0;
             }
         }
@@ -94,7 +99,7 @@ namespace TrainingService.Services
             }
             catch (JsonException ex)
             {
-                Console.WriteLine($"[ERROR] Could not parse vector output: {ex.Message}");
+                _logger.LogError($"[ERROR] Could not parse vector output: {ex.Message}");
                 return new List<double[]>();
             }
         }
@@ -110,7 +115,7 @@ namespace TrainingService.Services
             response.EnsureSuccessStatusCode();
 
             string responseContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(responseContent);
+            _logger.LogInformation(responseContent);
         }
 
         public async Task UploadTrainingSetAsync(TrainingSet trainingSet){
@@ -165,8 +170,8 @@ namespace TrainingService.Services
                     };
 
                     resultsBag.Add(seq);
-                    Console.WriteLine($"[Route {currentSeq}] Finished on thread {Thread.CurrentThread.ManagedThreadId} in {routeStopwatch.ElapsedMilliseconds} ms");
-
+                    _logger.LogInformation("[Route {RouteId}] Finished on thread {ThreadId} in {ElapsedMs} ms", 
+                        currentSeq, Thread.CurrentThread.ManagedThreadId, routeStopwatch.ElapsedMilliseconds);
                     semaphore.Release();
                 }));
             }
@@ -174,7 +179,8 @@ namespace TrainingService.Services
             // Wait for all routes to finish
             await Task.WhenAll(tasks);
             totalStopwatch.Stop();
-            Console.WriteLine($"All routes finished in {totalStopwatch.ElapsedMilliseconds} ms");
+            _logger.LogInformation("All routes finished in {ElapsedMs} ms", 
+                totalStopwatch.ElapsedMilliseconds);
 
             // Add all results to your training set
             trainingSet.Sequences.AddRange(resultsBag);
