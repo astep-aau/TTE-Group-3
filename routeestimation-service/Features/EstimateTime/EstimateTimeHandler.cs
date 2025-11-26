@@ -24,7 +24,7 @@ public class EstimateTimeHandler
     public EstimateTimeHandler(ILogger<CreateRouteHandler> logger, IConfiguration configuration)
     {
         _logger = logger;
-        _pythonServiceBaseUrl = configuration.GetValue<string>("PythonService:BaseUrl") ?? "http://localhost:8000";
+        _pythonServiceBaseUrl = configuration.GetValue<string>("PythonService:BaseUrl") ?? "http://training-service-python";
     }
     
     public Result<RouteResult> EstimateTime(RouteResult route)
