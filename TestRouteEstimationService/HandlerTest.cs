@@ -1,7 +1,9 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Features.CreateRoute;
+using RouteEstimationService.Features.EstimateTime;
 
 namespace TestRouteEstimationService;
 
@@ -9,13 +11,21 @@ public class CreateRouteHandlerTests
 {
     private readonly Mock<ILogger<CreateRouteHandler>> _mockLogger;
     private readonly Mock<IRouteMadeEmitter> _mockEmitter;
+    private readonly EstimateTimeHandler _estimateTimeHandler;
     private readonly CreateRouteHandler _handler;
 
     public CreateRouteHandlerTests()
     {
         _mockLogger = new Mock<ILogger<CreateRouteHandler>>();
         _mockEmitter = new Mock<IRouteMadeEmitter>();
-        _handler = new CreateRouteHandler(_mockLogger.Object, _mockEmitter.Object);
+        
+        // Create a mock configuration for EstimateTimeHandler
+        var mockConfiguration = new Mock<IConfiguration>();
+        mockConfiguration.Setup(c => c.GetSection("PythonService:BaseUrl").Value)
+            .Returns("http://localhost:8000");
+        
+        _estimateTimeHandler = new EstimateTimeHandler(_mockLogger.Object, mockConfiguration.Object);
+        _handler = new CreateRouteHandler(_mockLogger.Object, _mockEmitter.Object, _estimateTimeHandler);
     }
 
     #region Invalid Coordinate Tests
