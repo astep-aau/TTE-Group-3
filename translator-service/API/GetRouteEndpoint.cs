@@ -6,7 +6,7 @@ using System.Diagnostics;
 namespace translator_service.Endpoints;
 
 [ApiController]
-[Route("api/route")]
+[Route("group3/api/route")]
 public class GetRouteEndpoint : ControllerBase
 {
     private readonly GetRouteHandler _handler;
