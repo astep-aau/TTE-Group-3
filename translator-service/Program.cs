@@ -84,15 +84,12 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: myAllowSpecificOrigins,
         policy  =>
         {
-            // Allow frontend origins - both localhost and production
-            policy.WithOrigins(
-                    "http://localhost:3000",
-                    "https://localhost:3000",
-                    "http://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
-                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
+            // Allow your frontend's origin
+            policy.WithOrigins("http://localhost:3000",
+                    "https://cs-astep02.srv.aau.dk",
                     "http://cs-astep02.srv.aau.dk",
-                    "https://cs-astep02.srv.aau.dk"
-                )
+                    "http://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
+                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk")
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
