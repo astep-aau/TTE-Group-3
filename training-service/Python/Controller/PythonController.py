@@ -3,7 +3,20 @@ from typing import List
 from pathlib import Path
 import sys
 import json
+import logging
 from contextlib import asynccontextmanager
+
+# Setup logging for the python API
+logger = logging.getLogger("Python Controller")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setFormatter(logging.Formatter(
+        "\033[1m%(name)s\033[0m - "
+        "\033[33m%(levelname)s\033[0m - "
+        "%(message)s"
+    ))
+    logger.addHandler(ch)
 
 # Add Helpers folder to sys.path
 helpers_path = Path(__file__).parent.parent / "Service"
@@ -16,59 +29,74 @@ from DatasetCreation.getEdgeToVectors import GetEdgeToVectors
 from VectorEmbedding.Edge2Vec import VectorEmbedding
 from TrainingModels.LSTMTraining import TrainLSTMModel
 
+def _initialize_resources(embedding_path: Path = None):
+    """
+    Load the edgeEmbeddings.json file and return its contents.
 
-# -----------------------------
-# Resource loader (cache)
-# -----------------------------
-def _initialize_resources():
-    """Load the edgeEmbeddings.json file and return its contents."""
-    embedding_path = (
-        Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
-    )
+    Logs steps and errors to help debugging resource loading.
+    """
+    if embedding_path is None:
+        embedding_path = Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
+
+    logger.info("🔹 Loading edge embeddings")
 
     if not embedding_path.is_file():
+        logger.error("❌ edgeEmbeddings.json does not exist")
         raise FileNotFoundError('"edgeEmbeddings.json" does not exist. (Missing Dataset)')
 
     try:
         with open(embedding_path, "r") as f:
             embedding_cache = json.load(f)
         if not embedding_cache:
+            logger.error("❌ edgeEmbeddings.json is empty.")
             raise ValueError('"edgeEmbeddings.json" is empty.')
+        logger.info("✅ Successfully loaded edge embeddings")
     except json.JSONDecodeError as e:
+        logger.error("❌ Invalid JSON in edgeEmbeddings.json")
         raise ValueError(f"Invalid JSON in edgeEmbeddings.json: {str(e)}")
 
     return embedding_cache
 
 
-# -----------------------------
-# Lifespan (startup + shutdown)
-# -----------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🔵 Starting Python API...")
+    """
+    Application lifespan context manager
+
+    Handles startup and shutdown events for the FastAPI application.
+
+    Startup:
+        - Loads edge embeddings from 'edgeEmbeddings.json' into app state.
+        - Logs successful or failed loading.
+
+    Shutdown:
+        - Logs application shutdown.
+        - Provides a hook for any future cleanup if needed.
+
+    Raises:
+        FileNotFoundError: If the 'edgeEmbeddings.json' file does not exist.
+        ValueError: If the file is empty or contains invalid JSON.
+
+    Usage:
+        This is automatically used when the FastAPI app is created:
+        
+        app = FastAPI(lifespan=lifespan)
+    """
+    logger.info("🔵 Starting Python API...")
 
     try:
         app.state.embedding_cache = _initialize_resources()
-        print("✅ Edge embeddings loaded.")
+        logger.info("✅ Edge embeddings loaded.")
     except Exception as e:
-        print(f"❌ Failed loading embedding cache: {e}")
+        logger.error(f"❌ Failed loading embedding cache: {e}")
         raise e
 
-    yield  # Application runs here
+    yield
 
-    print("🔵 Shutting down API...")
-    # No cleanup needed, but hook is here if needed
+    logger.info("🔵 Shutting down API...")
 
-
-# -----------------------------
-# FastAPI App
-# -----------------------------
 app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
 
-
-# -----------------------------
-#     Endpoints
-# -----------------------------
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
     return {"predicted_time": predict_total_time(edges, ModelName)}
