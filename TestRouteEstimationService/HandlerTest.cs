@@ -21,9 +21,8 @@ public class CreateRouteHandlerTests
         
         // Create a mock configuration for EstimateTimeHandler
         var mockConfiguration = new Mock<IConfiguration>();
-        var mockSection = new Mock<IConfigurationSection>();
-        mockSection.Setup(s => s["BaseUrl"]).Returns("http://localhost:8000");
-        mockConfiguration.Setup(c => c.GetSection("PythonService")).Returns(mockSection.Object);
+        mockConfiguration.Setup(c => c.GetSection("PythonService:BaseUrl").Value)
+            .Returns("http://localhost:8000");
         
         _estimateTimeHandler = new EstimateTimeHandler(_mockLogger.Object, mockConfiguration.Object);
         _handler = new CreateRouteHandler(_mockLogger.Object, _mockEmitter.Object, _estimateTimeHandler);
