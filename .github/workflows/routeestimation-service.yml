@@ -1,0 +1,111 @@
+name: routeestimation-service
+
+on:
+  push:
+    branches: [ dev ]
+    paths:
+      - 'routeestimation-service/**'
+      - 'deploy/routeestimation-service.yaml'
+      - '.github/workflows/routeestimation-service.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: astep-aau/routeestimation-service
+  K8S_NAMESPACE: cs-25-sw-5-03
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_sha: ${{ steps.tags.outputs.sha }}
+      image_latest: ${{ steps.tags.outputs.latest }}
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - run: dotnet restore routeestimation-service/routeestimation-service.sln
+      - run: dotnet build routeestimation-service/routeestimation-service.sln --configuration Release --no-restore
+      - run: dotnet test routeestimation-service/routeestimation-service.sln --configuration Release --no-build --verbosity normal
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          echo "sha=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "latest=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: routeestimation-service/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.sha }}
+            ${{ steps.tags.outputs.latest }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted
+    permissions:
+      contents: read
+    env:
+      K8S_NAMESPACE: cs-25-sw-5-03
+      IMAGE: ${{ needs.build-and-push.outputs.image_sha }}
+
+      RABBIT_HOST: ${{ secrets.ROUTEESTIMATION_RABBIT_HOST }}
+      RABBIT_PORT: ${{ secrets.ROUTEESTIMATION_RABBIT_PORT }}
+      RABBIT_USERNAME: ${{ secrets.ROUTEESTIMATION_RABBIT_USERNAME }}
+      RABBIT_PASSWORD: ${{ secrets.ROUTEESTIMATION_RABBIT_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check permissions
+        run: |
+          kubectl auth whoami
+          kubectl auth can-i update deployments -n "$K8S_NAMESPACE"
+
+      - name: Apply routeestimation-service secrets
+        if: ${{ env.RABBIT_HOST != '' }}
+        run: |
+          kubectl create secret generic routeestimation-service-config \
+            --from-literal=RabbitMQ__Host="$RABBIT_HOST" \
+            --from-literal=RabbitMQ__Port="$RABBIT_PORT" \
+            --from-literal=RabbitMQ__Username="$RABBIT_USERNAME" \
+            --from-literal=RabbitMQ__Password="$RABBIT_PASSWORD" \
+            -n "$K8S_NAMESPACE" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply deployment manifests
+        run: |
+          kubectl apply -f deploy/routeestimation-service.yaml -n "$K8S_NAMESPACE"
+
+      - name: Update image only if changed
+        run: |
+          set -euo pipefail
+          CUR="$(kubectl -n "$K8S_NAMESPACE" get deploy/routeestimation-service -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          if [[ "$CUR" == "$IMAGE" ]]; then
+            echo "Image already applied ($IMAGE). Skipping rollout."
+            exit 0
+          fi
+          kubectl -n "$K8S_NAMESPACE" set image deployment/routeestimation-service routeestimation-service="$IMAGE"
+          kubectl -n "$K8S_NAMESPACE" rollout status deployment/routeestimation-service --timeout=10m
+

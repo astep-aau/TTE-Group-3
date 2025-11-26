@@ -29,10 +29,14 @@ packages/
 # Logs
 *.log
 
+venv
+
 # Temporary files
 *.tmp
 *.temp
 training-service/Helpers/Datasets/RoadTraversal.json
+pathfinding-service/Helper/.env
+routeestimation-service/Datasets/edge_traversals.json
 
 # Python virtual environments
 venv/

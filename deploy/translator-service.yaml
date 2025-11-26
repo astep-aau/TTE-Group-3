@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: translator-service
+  namespace: cs-25-sw-5-03
+  labels:
+    app: translator-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: translator-service
+  template:
+    metadata:
+      labels:
+        app: translator-service
+    spec:
+      containers:
+        - name: translator-service
+          image: ghcr.io/astep-aau/translator-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:8080
+          envFrom:
+            - secretRef:
+                name: translator-service-config 
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "25m"
+            limits:
+              memory: "256Mi"
+              cpu: "50m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: translator-service
+  namespace: cs-25-sw-5-03
+  labels:
+    app: translator-service
+spec:
+  type: ClusterIP
+  selector:
+    app: translator-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: translator-ingress
+  namespace: cs-25-sw-5-03
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: cs-25-sw-5-03.cs-astep02.srv.aau.dk
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: translator-service
+                port:
+                  number: 80
