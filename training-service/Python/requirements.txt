@@ -1,9 +1,9 @@
 # FastAPI and server
-fastapi>=0.109.0
+fastapi>=0.109.1,<1.0.0
 uvicorn>=0.27.0
 
 # Machine Learning
-torch>=2.2.0
+torch>=2.2.2,<3.0.0
 numpy>=1.26.0
 matplotlib>=3.8.0
 
