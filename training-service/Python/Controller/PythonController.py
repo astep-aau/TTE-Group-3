@@ -29,29 +29,33 @@ from DatasetCreation.getEdgeToVectors import GetEdgeToVectors
 from VectorEmbedding.Edge2Vec import VectorEmbedding
 from TrainingModels.LSTMTraining import TrainLSTMModel
 
+def _initialize_resources(embedding_path: Path = None):
+    """
+    Load the edgeEmbeddings.json file and return its contents.
 
-# -----------------------------
-# Resource loader (cache)
-# -----------------------------
-def _initialize_resources():
-    """Load the edgeEmbeddings.json file and return its contents."""
-    embedding_path = (
-        Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
-    )
+    Logs steps and errors to help debugging resource loading.
+    """
+    if embedding_path is None:
+        embedding_path = Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
+
+    logger.info("🔹 Loading edge embeddings")
 
     if not embedding_path.is_file():
+        logger.error("❌ edgeEmbeddings.json does not exist")
         raise FileNotFoundError('"edgeEmbeddings.json" does not exist. (Missing Dataset)')
 
     try:
         with open(embedding_path, "r") as f:
             embedding_cache = json.load(f)
         if not embedding_cache:
+            logger.error("❌ edgeEmbeddings.json is empty.")
             raise ValueError('"edgeEmbeddings.json" is empty.')
+        logger.info("✅ Successfully loaded edge embeddings")
     except json.JSONDecodeError as e:
+        logger.error("❌ Invalid JSON in edgeEmbeddings.json")
         raise ValueError(f"Invalid JSON in edgeEmbeddings.json: {str(e)}")
 
     return embedding_cache
-
 
 
 @asynccontextmanager
@@ -78,7 +82,6 @@ async def lifespan(app: FastAPI):
         
         app = FastAPI(lifespan=lifespan)
     """
-
     logger.info("🔵 Starting Python API...")
 
     try:
@@ -92,15 +95,8 @@ async def lifespan(app: FastAPI):
 
     logger.info("🔵 Shutting down API...")
 
-# -----------------------------
-# FastAPI App
-# -----------------------------
 app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
 
-
-# -----------------------------
-#     Endpoints
-# -----------------------------
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
     return {"predicted_time": predict_total_time(edges, ModelName)}
