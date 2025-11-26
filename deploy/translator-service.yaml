@@ -76,7 +76,7 @@ spec:
     - host: cs-astep02.srv.aau.dk
       http:
         paths:
-          - path: /group3
+          - path: /
             pathType: Prefix
             backend:
               service:
