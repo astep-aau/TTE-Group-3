@@ -7,6 +7,7 @@ using translator_service;
 using translator_service.API;
 using translator_service.Features.CreateProcess;
 using MassTransit;
+using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -83,10 +84,18 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: myAllowSpecificOrigins,
         policy  =>
         {
-            // Allow your frontend's origin
-            policy.WithOrigins("http://localhost:3000")
+            // Allow frontend origins - both localhost and production
+            policy.WithOrigins(
+                    "http://localhost:3000",
+                    "https://localhost:3000",
+                    "http://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
+                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
+                    "http://cs-astep02.srv.aau.dk",
+                    "https://cs-astep02.srv.aau.dk"
+                )
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         });
 });
 
@@ -122,6 +131,10 @@ app.UseSerilogRequestLogging(options =>
         diagnosticContext.Set("ClientIP", httpContext.Connection.RemoteIpAddress?.ToString());
     };
 });
+
+// Configure path base to handle /group3 prefix from ingress
+// This must be early in the pipeline to properly handle path rewriting
+app.UsePathBase(new PathString("/group3"));
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
