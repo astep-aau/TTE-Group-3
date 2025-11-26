@@ -89,7 +89,11 @@ builder.Services.AddCors(options =>
                     "https://cs-astep02.srv.aau.dk",
                     "http://cs-astep02.srv.aau.dk",
                     "http://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
-                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk")
+                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
+                    "https://cs-astep02.srv.aau.dk/group3/",
+                    "http://cs-astep02.srv.aau.dk/group3/",
+                    "http://cs-25-sw-5-03.cs-astep02.srv.aau.dk/group3/",
+                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk/group3/")
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
