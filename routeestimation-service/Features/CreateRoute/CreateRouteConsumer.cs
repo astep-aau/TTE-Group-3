@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using MassTransit;
 using Microsoft.Extensions.Logging;
@@ -12,17 +11,15 @@ namespace RouteEstimationService.Features.CreateRoute;
 
 public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
 {
-    private readonly CreateRouteHandler _handler;
+    private readonly ICreateRouteHandler _handler;
     private readonly ILogger<CreateRouteConsumer> _logger;
     private readonly IValidator<CreateProcessEvent> _validator;
-    private readonly CreateRouteEmitter _emitter;
 
-    public CreateRouteConsumer(CreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator, CreateRouteEmitter emitter)
+    public CreateRouteConsumer(ICreateRouteHandler handler, ILogger<CreateRouteConsumer> logger, IValidator<CreateProcessEvent> validator)
     {
         _handler = handler;
         _logger = logger;
         _validator = validator;
-        _emitter = emitter;
     }
 
     public async Task Consume(ConsumeContext<CreateProcessEvent> context)
@@ -47,37 +44,22 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
             CorrelationId = evt.CorrelationId,
             Origin = evt.Origin,
             Destination = evt.Destination,
-            TimeOfTravel = evt.TimeOfTravel,
+            TimeOfTravel = evt.TimeOfTravel,    // TODO: Use this for time-dependent routing and time estimation
             CreatedAt = evt.CreatedAt,
-            ModelVersion = evt.ModelVersion
+            ModelVersion = evt.ModelVersion     // Used in the translator service, and is just passed through here
         };
 
         // Handle the route creation
         _logger.LogInformation("[Consumer] Processing route for ProcessId={ProcessId}", payload.ProcessId);
-        var route = _handler.HandleAsync(payload);
-        
-        var routeMadeEvent = new RouteMadeEvent
+        try
         {
-           Id = payload.ProcessId,
-           CorrelationId = payload.CorrelationId,
-           Origin = payload.Origin, 
-           Destination = payload.Destination,
-           DistanceKm = route.Value.DistanceKm, 
-           TravelTimeMinutes = route.Value.EstimatedTimeSeconds, 
-           Path = route.Value.Path 
-        };
-
-        if (!route.IsSuccess)
-        {
-            _logger.LogWarning("[Consumer] Route creation failed for ProcessId={ProcessId}: {Errors}",
-                payload.ProcessId, string.Join(", ", route.Errors));
+            await _handler.HandleAsync(payload);
+            _logger.LogInformation("[Consumer] Route created successfully for ProcessId={ProcessId}", payload.ProcessId);
         }
-        else
+        catch (Exception ex)
         {
-            _logger.LogInformation("[Consumer] Route created successfully for ProcessId={ProcessId}:\n{Route}",
-                payload.ProcessId, route.Value);
+            _logger.LogError(ex, "[Consumer] Failed to create route for ProcessId={ProcessId}", payload.ProcessId);
+            throw; // Re-throw to trigger MassTransit retry/error handling
         }
-        
-        await _emitter.EmitCreateProcessEventAsync(routeMadeEvent);
     }
 }

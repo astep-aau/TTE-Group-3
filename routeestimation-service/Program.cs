@@ -1,6 +1,4 @@
 using System;
-using System.Linq;
-using System.Security.Authentication;
 using FluentValidation;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
@@ -24,17 +22,17 @@ try
         .ConfigureServices((hostContext, services) =>
         {
             services.AddScoped<CreateRouteConsumer>();
-            services.AddScoped<CreateRouteHandler>();
+            services.AddScoped<ICreateRouteHandler, CreateRouteHandler>();
+            services.AddScoped<IRouteMadeEmitter, RouteMadeEmitter>();
             services.AddScoped<IValidator<CreateProcessEvent>, CreateRouteValidator>();
-            services.AddScoped<CreateRouteEmitter>();
 
             services.AddMassTransit(x =>
             {
                 var rabbit = hostContext.Configuration.GetSection("RabbitMQ");
-                var host = rabbit.GetValue<string>("Host", "localhost");
+                var host = rabbit.GetValue("Host", "localhost");
                 var port = rabbit.GetValue<ushort>("Port", 5672);
-                var user = rabbit.GetValue<string>("Username", "guest");
-                var pass = rabbit.GetValue<string>("Password", "guest");
+                var user = rabbit.GetValue("Username", "guest");
+                var pass = rabbit.GetValue("Password", "guest");
 
                 x.AddConsumer<CreateRouteConsumer>();
                 x.UsingRabbitMq((ctx, cfg) =>

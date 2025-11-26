@@ -22,7 +22,7 @@ public class CreateRouteValidator : AbstractValidator<CreateProcessEvent>
         RuleFor(x => x.ModelVersion).NotEmpty().WithMessage("[Validator] ModelVersion must be specified");
     }
 
-    private static bool BeLatLon(string? s)
+    private static bool BeLatLon(string s)
     {
         string[] parts = s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2) return false;

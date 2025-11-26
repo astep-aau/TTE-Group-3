@@ -13,6 +13,8 @@ jobs:
     strategy:
       matrix:
         include:
+          - service: routeestimation
+            test_project: TestRouteEstimationService/TestRouteEstimationService.csproj
           - service: translator
             test_project: TestTranslatorService/TestTranslatorService.csproj
           - service: state

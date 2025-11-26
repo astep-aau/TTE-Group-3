@@ -10,6 +10,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
 COPY --from=build /app/publish .
+COPY --from=build /src/Datasets ./Datasets
 
 ENTRYPOINT ["dotnet", "routeestimation-service.dll"]
 

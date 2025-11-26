@@ -6,6 +6,8 @@ using System.Linq;
 using System.Globalization;
 using FluentResults;
 using RouteEstimationService.Domain.Entities;
+using CsvHelper;
+using CsvHelper.Configuration;
 
 namespace RouteEstimationService.Helper;
 
@@ -14,8 +16,9 @@ public class ShortestRouteFinder
     private static Dictionary<string, NodeData> _nodeCache;
     private static Dictionary<int, EdgeData> _edgeCache;
     private static bool _isLoaded;
+    private static readonly object _loadLock = new();
     private const string RoadNetworkFile = "Datasets/vertex_graph.json"; // Upload nye filer
-    private const string EdgeFile = "Datasets/edge_traversals.json"; // Upload nye filer
+    private const string EdgeFile = "Datasets/edge_traversals_lengths.csv"; // Upload nye filer
 
     private class NodeData
     {
@@ -33,10 +36,26 @@ public class ShortestRouteFinder
         public bool Oneway { get; init; }
     }
 
+    private class EdgeCsvRecord
+    {
+        public int EdgeId { get; set; }
+        public double LengthCm { get; set; }
+        public bool Oneway { get; set; }
+    }
+
+    private sealed class EdgeCsvRecordMap : ClassMap<EdgeCsvRecord>
+    {
+        public EdgeCsvRecordMap()
+        {
+            Map(m => m.EdgeId).Name("edge_id");
+            Map(m => m.LengthCm).Name("length_cm");
+            Map(m => m.Oneway).Name("oneway");
+        }
+    }
+
     public static Result<RouteResult> ShortestRoute(string originNodeId, string destinationNodeId)
     {
-        if (!_isLoaded)
-            LoadData();
+        EnsureDataLoaded();
         if (!_nodeCache.TryGetValue(originNodeId, out NodeData originNode) || !_nodeCache.TryGetValue(destinationNodeId, out NodeData destinationNode))
             return Result.Ok(new RouteResult());    // Return empty route if nodes not found
 
@@ -76,6 +95,7 @@ public class ShortestRouteFinder
                     openSet.Enqueue(neighbor, fScore[neighbor]);
             }
             // Backward traversal (only if edge is not oneway)
+            // TODO: Consider removing this part, as backward traversal may not be necessary and currently all edges are oneway
             for (int i = 0; i < node.BackwardEdges.Count; i++)
             {
                 int edgeId = node.BackwardEdges[i];
@@ -94,6 +114,18 @@ public class ShortestRouteFinder
         }
         // No route found
         return Result.Ok(new RouteResult());
+    }
+
+    private static void EnsureDataLoaded()
+    {
+        if (_isLoaded)
+            return;
+
+        lock (_loadLock)
+        {
+            if (!_isLoaded)
+                LoadData();
+        }
     }
 
     // helper to avoid repeated TryGetValue pattern with correct edge lookup
@@ -148,21 +180,24 @@ public class ShortestRouteFinder
             };
             _nodeCache[key] = nodeData;
         }
-        // Load edges
+        // Load edges from CSV
         string edgePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, EdgeFile);
-        string edgeJson = File.ReadAllText(edgePath);
-        var edgeDict = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(edgeJson);
-        _edgeCache = new Dictionary<int, EdgeData>(edgeDict.Count);
-        foreach ((string key, var edge) in edgeDict)
+        using var reader = new StreamReader(edgePath);
+        using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            edge.TryGetValue("length (cm)", out object lengthObj);
-            edge.TryGetValue("oneway", out object onewayObj);
-            var edgeData = new EdgeData
+            HasHeaderRecord = true
+        });
+        csv.Context.RegisterClassMap<EdgeCsvRecordMap>();
+
+        var edgeRecords = csv.GetRecords<EdgeCsvRecord>();
+        _edgeCache = new Dictionary<int, EdgeData>();
+        foreach (var record in edgeRecords)
+        {
+            _edgeCache[record.EdgeId] = new EdgeData
             {
-                LengthCm = ToDouble(lengthObj),
-                Oneway = ToBool(onewayObj)
+                LengthCm = record.LengthCm,
+                Oneway = record.Oneway
             };
-            _edgeCache[int.Parse(key)] = edgeData;
         }
         _isLoaded = true;
     }

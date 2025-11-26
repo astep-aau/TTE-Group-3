@@ -11,7 +11,7 @@ public record RouteMadeEvent
     public string Destination { get; init; } = string.Empty;
 
     public double DistanceKm { get; init; }
-    public double TravelTimeMinutes { get; init; }
+    public double TravelTimeSeconds { get; init; }
     
     public IReadOnlyList<RouteCoordinate> Path { get; init; }
 }
