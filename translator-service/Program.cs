@@ -129,10 +129,6 @@ app.UseSerilogRequestLogging(options =>
     };
 });
 
-// Configure path base to handle /group3 prefix from ingress
-// This must be early in the pipeline to properly handle path rewriting
-app.UsePathBase(new PathString("/group3"));
-
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 { 
