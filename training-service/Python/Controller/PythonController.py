@@ -1,10 +1,9 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
-import os
 from typing import List
 from pathlib import Path
 import sys
 import json
-import sqlite3
+from contextlib import asynccontextmanager
 
 # Add Helpers folder to sys.path
 helpers_path = Path(__file__).parent.parent / "Service"
@@ -17,13 +16,16 @@ from DatasetCreation.getEdgeToVectors import GetEdgeToVectors
 from VectorEmbedding.Edge2Vec import VectorEmbedding
 from TrainingModels.LSTMTraining import TrainLSTMModel
 
-app = FastAPI(title="TTE Python API Controller")
 
+# -----------------------------
+# Resource loader (cache)
+# -----------------------------
 def _initialize_resources():
-    # -------------------------
-    # Load edge embeddings
-    # -------------------------
-    embedding_path = Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
+    """Load the edgeEmbeddings.json file and return its contents."""
+    embedding_path = (
+        Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
+    )
+
     if not embedding_path.is_file():
         raise FileNotFoundError('"edgeEmbeddings.json" does not exist. (Missing Dataset)')
 
@@ -34,33 +36,43 @@ def _initialize_resources():
             raise ValueError('"edgeEmbeddings.json" is empty.')
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in edgeEmbeddings.json: {str(e)}")
-    except IOError as e:
-        raise RuntimeError(f"Error reading edgeEmbeddings.json: {str(e)}")
 
     return embedding_cache
 
-# Initialize resources at startup and store in app.state
-@app.on_event("startup")
-def startup_event():
+
+# -----------------------------
+# Lifespan (startup + shutdown)
+# -----------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🔵 Starting Python API...")
+
     try:
-        embedding_cache = _initialize_resources()
-        app.state.embedding_cache = embedding_cache
-        print("Resources initialized successfully at startup (memory-efficient mode)", file=sys.stderr)
+        app.state.embedding_cache = _initialize_resources()
+        print("✅ Edge embeddings loaded.")
     except Exception as e:
-        # keep startup but log the error so endpoints can still attempt to initialize lazily
-        print(f"Resource initialization failed on startup: {e}", file=sys.stderr)
-        app.state.embedding_cache = None
+        print(f"❌ Failed loading embedding cache: {e}")
+        raise e
 
-@app.on_event("shutdown")
-def shutdown_event():
-    """Close database connection on shutdown."""
-    if hasattr(app.state, "db_connection") and app.state.db_connection:
-        app.state.db_connection.close()
-        print("Database connection closed", file=sys.stderr)
+    yield  # Application runs here
 
+    print("🔵 Shutting down API...")
+    # No cleanup needed, but hook is here if needed
+
+
+# -----------------------------
+# FastAPI App
+# -----------------------------
+app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
+
+
+# -----------------------------
+#     Endpoints
+# -----------------------------
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
     return {"predicted_time": predict_total_time(edges, ModelName)}
+
 
 @app.get("/Python/generate-routes/{NumberOfSequences}/{MinLengthOfSequence}/{MaxLengthOfSequence}")
 def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOfSequence: int):
@@ -81,30 +93,34 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Endpoint for a single route - pass db connection and embedding cache from app.state
+
 @app.post("/Python/calculate-route-time")
 def calculateRouteTime(route: List[int]):
     embedding_cache = getattr(app.state, "embedding_cache", None)
     return EdgeTraversalTime(route, embedding_cache=embedding_cache)
+
 
 @app.post("/Python/vectors")
 def getEdgeToVectors(edges: List[int]):
     embedding_cache = getattr(app.state, "embedding_cache", None)
     return GetEdgeToVectors(edges, embedding_cache=embedding_cache)
 
+
 @app.post("/Python/vector-embedding")
 def vectorEmbedding():
     VectorEmbedding()
     return {"status": "Edge embeddings generated successfully."}
+
 
 @app.post("/Python/train-lstm/{ModelName}")
 def trainLSTMModel(ModelName: str):
     TrainLSTMModel(ModelName)
     return {"status": "LSTM model trained successfully."}
 
+
 @app.post("/Python/TrainingFile")
 async def upload(file: UploadFile = File(...)):
     file_path = Path(__file__).parent.parent / "Service" / "Data" / "TrainingSet.json"
     with open(file_path, "wb") as f:
         f.write(await file.read())
-    return {"status": "ok", "file_saved": file_path}
+    return {"status": "ok", "file_saved": str(file_path)}

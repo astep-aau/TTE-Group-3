@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Net;
 
 namespace TrainingService.Services
 {
@@ -14,6 +15,12 @@ namespace TrainingService.Services
         private static readonly HttpClient client = new HttpClient{
             Timeout = TimeSpan.FromMinutes(1000)
         };
+
+        static Service(){
+        client.DefaultRequestVersion = HttpVersion.Version11;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        }
+
         private readonly ILogger<Service> _logger;
         public Service(ILogger<Service> logger){
             _logger = logger;
@@ -55,6 +62,7 @@ namespace TrainingService.Services
 
             try
             {
+                _logger.LogInformation("Calculating time for routes");
                 string url = "http://127.0.0.1:8000/Python/calculate-route-time";
                 string jsonBody = JsonSerializer.Serialize(edges);
                 using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
@@ -83,6 +91,7 @@ namespace TrainingService.Services
 
             try
             {
+                _logger.LogInformation("Getting vectors for edges");
                 string url = "http://127.0.0.1:8000/Python/vectors";
                 string jsonBody = JsonSerializer.Serialize(edges);
                 using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
@@ -118,7 +127,8 @@ namespace TrainingService.Services
             _logger.LogInformation(responseContent);
         }
 
-        public async Task UploadTrainingSetAsync(TrainingSet trainingSet){
+        public async Task UploadTrainingSetAsync(TrainingSet trainingSet, string modelName){
+            _logger.LogInformation("Uploading training set");
             byte[] fileBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(trainingSet));
             using var streamContent = new ByteArrayContent(fileBytes);
             using var form = new MultipartFormDataContent();
@@ -126,7 +136,11 @@ namespace TrainingService.Services
 
             HttpResponseMessage response = await client.PostAsync("http://127.0.0.1:8000/Python/TrainingFile", form);
             response.EnsureSuccessStatusCode();
-    }
+            _logger.LogInformation("Uploaded training set, starting LSTM training");
+
+            await LstmTraining(modelName);
+            _logger.LogInformation("LSTM training completed");
+        }
         
         //Det her er 3 del af servicen, det er den der kalder de 2 andre metoder og sørger for at det køre.
         public async Task<string> CreateTrainingSet(
@@ -185,9 +199,7 @@ namespace TrainingService.Services
             // Add all results to your training set
             trainingSet.Sequences.AddRange(resultsBag);
             
-            await UploadTrainingSetAsync(trainingSet);
-
-            await LstmTraining(modelName);
+            await UploadTrainingSetAsync(trainingSet, modelName);
             
             StatusTracker.Status = "Idle";
             return "Training Done";

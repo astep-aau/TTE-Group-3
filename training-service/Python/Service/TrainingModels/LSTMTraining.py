@@ -15,7 +15,7 @@ def TrainLSTMModel(ModelName):
     # -----------------------------
     # 1️⃣ Load and preprocess data
     # -----------------------------
-    json_path = Path(__file__).parent.parent / "Data" / "TrainingSet.JSON"
+    json_path = Path(__file__).parent.parent / "Data" / "TrainingSet.json"
     with open(json_path, "r") as f:
         data = json.load(f)
 
