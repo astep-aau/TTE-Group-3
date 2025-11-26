@@ -1,6 +1,5 @@
 import sys
-import json
-from pathlib import Path
+from .embeddings_cache import get_embeddings
 
 # ===Function that converts a list of edges to their vectors===
 def convertEdgeToVector(embeddings, edges):
@@ -14,16 +13,11 @@ def convertEdgeToVector(embeddings, edges):
 
 def GetEdgeToVectors(edges):
     try:
-        InputFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"   #Path to the embeddings file
-
         if not edges: #Check if the data is empty, if it is raise an error.
             raise ValueError('No route data provided. (Empty Route)')
 
-        if not InputFile.is_file(): #Check if the file can be found, if not raise an error. 
-            raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Missing dataset)')
-
-        with open(InputFile, "r") as f:
-            Embeddings = json.load(f)
+        # Use cached embeddings instead of loading from file every time
+        Embeddings = get_embeddings()
 
         #Call the function that converts edges to their vectors
         vectors = convertEdgeToVector(Embeddings, edges)

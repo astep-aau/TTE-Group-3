@@ -15,8 +15,18 @@ from DatasetCreation.timeCreation import EdgeTraversalTime  # your helper functi
 from DatasetCreation.getEdgeToVectors import GetEdgeToVectors  # your helper function
 from VectorEmbedding.Edge2Vec import VectorEmbedding  # your helper function
 from TrainingModels.LSTMTraining import TrainLSTMModel  # your helper function
+from DatasetCreation.embeddings_cache import get_embeddings  # embeddings cache
 
 app = FastAPI(title="TTE Python API Controller")
+
+@app.on_event("startup")
+async def startup_event():
+    """Pre-load embeddings cache at startup to avoid first-request delay"""
+    try:
+        get_embeddings()
+        print("Embeddings cache loaded successfully", file=sys.stderr, flush=True)
+    except Exception as e:
+        print(f"Warning: Failed to load embeddings cache at startup: {e}", file=sys.stderr, flush=True)
 
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
