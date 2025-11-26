@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RouteEstimationService.Features.CreateRoute;
+using RouteEstimationService.Features.EstimateTime;
 using RouteEstimationService.Domain.Entities.Events;
 using Serilog;
 
@@ -25,6 +26,7 @@ try
             services.AddScoped<ICreateRouteHandler, CreateRouteHandler>();
             services.AddScoped<IRouteMadeEmitter, RouteMadeEmitter>();
             services.AddScoped<IValidator<CreateProcessEvent>, CreateRouteValidator>();
+            services.AddScoped<EstimateTimeHandler>();
 
             services.AddMassTransit(x =>
             {

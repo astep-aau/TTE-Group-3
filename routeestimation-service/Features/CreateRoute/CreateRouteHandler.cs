@@ -14,11 +14,13 @@ public class CreateRouteHandler : ICreateRouteHandler
 {
     private readonly ILogger<CreateRouteHandler> _logger;
     private readonly IRouteMadeEmitter _emitter;
+    private readonly EstimateTimeHandler _estimateTimeHandler;
 
-    public CreateRouteHandler(ILogger<CreateRouteHandler> logger, IRouteMadeEmitter emitter)
+    public CreateRouteHandler(ILogger<CreateRouteHandler> logger, IRouteMadeEmitter emitter, EstimateTimeHandler estimateTimeHandler)
     {
         _logger = logger;
         _emitter = emitter;
+        _estimateTimeHandler = estimateTimeHandler;
     }
 
     public async Task HandleAsync(ProcessPayload payload)
@@ -77,8 +79,7 @@ public class CreateRouteHandler : ICreateRouteHandler
         
         // Handle the time estimation
         _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
-        var estimateTimeHandler = new EstimateTimeHandler(_logger);
-        var estimationResult = estimateTimeHandler.EstimateTime(route);
+        var estimationResult = _estimateTimeHandler.EstimateTime(route);
         if (!estimationResult.IsSuccess)
         {
             string errorMessage = string.Join(", ", estimationResult.Errors.Select(e => e.Message).Where(m => !string.IsNullOrWhiteSpace(m)));

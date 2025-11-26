@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: routeestimation-service
+  namespace: cs-25-sw-5-03
   labels:
     app: routeestimation-service
 spec:

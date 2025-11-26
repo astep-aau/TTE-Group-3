@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using FluentResults;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RouteEstimationService.Domain.Entities;
 using RouteEstimationService.Features.CreateRoute;
@@ -18,10 +19,12 @@ public class EstimateTimeHandler
     };
 
     private readonly ILogger<CreateRouteHandler> _logger;
+    private readonly string _pythonServiceBaseUrl;
 
-    public EstimateTimeHandler(ILogger<CreateRouteHandler> logger)
+    public EstimateTimeHandler(ILogger<CreateRouteHandler> logger, IConfiguration configuration)
     {
         _logger = logger;
+        _pythonServiceBaseUrl = configuration.GetValue<string>("PythonService:BaseUrl") ?? "http://localhost:8000";
     }
     
     public Result<RouteResult> EstimateTime(RouteResult route)
@@ -37,13 +40,13 @@ public class EstimateTimeHandler
         {
             string payload = JsonSerializer.Serialize(route.EdgeIds, _jsonOptions);
             response = http.PostAsync(
-                "http://127.0.0.1:8000/Python/vectors",
+                $"{_pythonServiceBaseUrl}/Python/vectors",
                 new StringContent(payload, Encoding.UTF8, "application/json")
             ).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[EstimateTimeHandler] Failed to call embedding service");
+            _logger.LogError(ex, "[EstimateTimeHandler] Failed to call embedding service at {BaseUrl}", _pythonServiceBaseUrl);
             return Result.Fail<RouteResult>($"Failed to call embedding service: {ex.Message}");
         }
 
@@ -73,7 +76,7 @@ public class EstimateTimeHandler
         try
         {
             response = http.PostAsync(
-                "http://127.0.0.1:8000/Python/predict-time",
+                $"{_pythonServiceBaseUrl}/Python/predict-time",
                 new StringContent(embeddedEdges, Encoding.UTF8, "application/json")
             ).GetAwaiter().GetResult();
         }
