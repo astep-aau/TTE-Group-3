@@ -19,6 +19,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY training-service/Python/ .
 
+# Explicitly ensure Data directory and all data files are included
+# This ensures edgeEmbeddings.json, TrainedModels/*.pt, and any other data files are present
+COPY training-service/Python/Service/Data/ Service/Data/
+
 # Expose the FastAPI port
 EXPOSE 6969
 
