@@ -1,0 +1,14 @@
+# FastAPI and server
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
+# Machine Learning
+torch>=2.2.0
+numpy>=1.26.0
+matplotlib>=3.8.0
+
+# Graph and Node2Vec
+networkx>=3.2.0
+node2vec>=0.4.6
+gensim>=4.3.0
+
