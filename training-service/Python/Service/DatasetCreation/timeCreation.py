@@ -2,6 +2,7 @@ import json
 import random
 from pathlib import Path
 import numpy as np
+from .embeddings_cache import get_embeddings
 
 # === Function to calculate edge traversal times ===
 def get_edge_time(route, traversalData, embeddings_dict):
@@ -59,15 +60,14 @@ def get_edge_time(route, traversalData, embeddings_dict):
 
 def EdgeTraversalTime(route):
     InputFile = Path(__file__).parent.parent / "Data" / "RoadTraversal.json"
-    EmbeddingFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
     Route = route
 
     try:
         if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
             raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
     
-        if not EmbeddingFile.is_file(): #Check if the file can be found, if not raise an error.
-            raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Mising Dataset)')
+        if not Route: #Check if the data is empty, if it is raise an error.
+            raise ValueError('No route data provided. (Empty Route)')
 
         #Opens the file and load data into "traversalData".
         with open(InputFile, "r") as f:
@@ -76,15 +76,8 @@ def EdgeTraversalTime(route):
         if not traversalData: #Check if travalsalData is empty, if it is raise an error.
             raise ValueError('"RoadTraversal.json" is empty or not loaded. (Empty Dataset)')
     
-        if not Route: #Check if the data is empty, if it is raise an error.
-            raise ValueError('No route data provided. (Empty Route)')
-    
-        # Load embeddings once outside the loop
-        with open(EmbeddingFile, "r") as f:
-            embeddingData = json.load(f)
-
-        if not embeddingData: #Check if travalsalData is empty, if it is raise an error.
-            raise ValueError('"edgeEmbeddings.json" is empty or not loaded. (Empty Dataset)')    
+        # Use cached embeddings instead of loading from file every time
+        embeddingData = get_embeddings()
     
         times = get_edge_time(Route, traversalData, embeddingData)
         return times
