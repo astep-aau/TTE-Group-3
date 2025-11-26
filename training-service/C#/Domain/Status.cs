@@ -1,4 +1,4 @@
-namespace trainingService.Domain;
+namespace TrainingService.Domain;
 
 public static class StatusTracker
 {

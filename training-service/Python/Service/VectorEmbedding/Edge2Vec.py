@@ -8,9 +8,9 @@ from pathlib import Path
 def modelTraining(GraphForEdges):
     node2vec = Node2Vec(    # Initialize Node2Vec model
         GraphForEdges,      # The graph
-        dimensions=64,       # Embedding dimensions
-        walk_length=15,     # Length of each random walk
-        num_walks=10,       # Number of walks per node
+        dimensions=128,     # Embedding dimensions
+        walk_length=150,    # Length of each random walk
+        num_walks=100,      # Number of walks per node
         p=1,                # Return hyperparameter
         q=1,                # Input hyperparameter
         workers=4           # Number of parallel workers

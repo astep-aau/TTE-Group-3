@@ -37,6 +37,8 @@ venv
 training-service/Helpers/Datasets/RoadTraversal.json
 pathfinding-service/Helper/.env
 routeestimation-service/Datasets/edge_traversals.json
+training-service/Python/Service/Data/RoadTraversal.json
+training-service/Python/Service/Data/RoadNetwork.json
 
 # Python virtual environments
 venv/

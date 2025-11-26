@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using trainingService.Domain;
-using TrainingService.Services;
+using TrainingService.Services; // For TrainingService class
+using TrainingService.Domain;   // For TrainingRequest DTO
+using TrainingService.Infrastructure;
 
 namespace TrainingService.Controllers
 {
@@ -8,26 +9,25 @@ namespace TrainingService.Controllers
     [Route("[controller]")]
     public class TrainingController : ControllerBase
     {
-        private readonly TrainingService.Services.TrainingService _trainingService;
+        private readonly Service _trainingService;
+        private readonly TrainingQueue _queue;
         
-        public TrainingController(Services.TrainingService trainingService)
+        public TrainingController(Service trainingService, TrainingQueue queue)
         {
             _trainingService = trainingService;
+            _queue = queue;
         }
 
         [HttpPost("/Training/start-training")]
-        public async Task<IActionResult> StartTraining([FromBody] TrainingRequest request){
-            try{
-                var trainingSet = await _trainingService.CreateTrainingSet(
-                    request.ModelName, 
-                    request.NumberOfRoutes, 
-                    request.MinLength, 
-                    request.MaxLength
-                );
-                    return Ok(trainingSet);
-            }catch (Exception ex){
-                return StatusCode(500, new { error = ex.Message });
-            }
+        public IActionResult StartTraining([FromBody] TrainingRequest request)
+        {
+            _queue.Enqueue(request);
+
+            return Ok(new 
+            { 
+                Status = "Queued", 
+                Message = "Training started in background." 
+            });
         }
 
         [HttpGet("Training/status")]
