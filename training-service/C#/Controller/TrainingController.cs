@@ -11,7 +11,7 @@ namespace TrainingService.Controllers
     [Route("[controller]")]
     public class TrainingController : ControllerBase
     {
-        private readonly TrainingQueue _queue;
+        private readonly ITrainingQueue _queue;
         private readonly ILogger<TrainingController> _logger;
 
         /// <summary>
@@ -19,7 +19,7 @@ namespace TrainingService.Controllers
         /// </summary>
         /// <param name="queue">The training queue for managing background training tasks.</param>
         /// <param name="logger">The logger instance for diagnostic logging.</param>
-        public TrainingController(TrainingQueue queue, ILogger<TrainingController> logger)
+        public TrainingController(ITrainingQueue queue, ILogger<TrainingController> logger)
         {
             _queue = queue;
             _logger = logger;
