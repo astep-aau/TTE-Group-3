@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: training-service-python
+  namespace: cs-25-sw-5-03
+  labels:
+    app: training-service-python
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: training-service-python
+  template:
+    metadata:
+      labels:
+        app: training-service-python
+    spec:
+      containers:
+        - name: training-service-python
+          image: ghcr.io/astep-aau/training-service-python:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6969
+          envFrom:
+            - secretRef:
+                name: training-service-python-config
+                optional: true
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "100m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 6969
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 6969
+            initialDelaySeconds: 30
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: training-service-python
+  namespace: cs-25-sw-5-03
+  labels:
+    app: training-service-python
+spec:
+  type: ClusterIP
+  selector:
+    app: training-service-python
+  ports:
+    - name: http
+      port: 80
+      targetPort: 6969
+
