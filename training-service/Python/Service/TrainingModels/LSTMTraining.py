@@ -43,8 +43,8 @@ def TrainLSTMModel(ModelName):
     train_size = train_val_size - val_size
     train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-    train_loader = DataLoader(train_dataset, batch_size=20, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=100)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=128)
 
     # Normalization
     y_train = torch.stack([yb for _, yb in train_dataset])
@@ -57,14 +57,14 @@ def TrainLSTMModel(ModelName):
     # -----------------------------
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = LSTMModel(input_size=num_features).to(device)
-    criterion = nn.L1Loss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.SmoothL1Loss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.002)
 
     # -----------------------------
     # 3️⃣ Training loop
     # -----------------------------
     num_epochs = 500
-    patience = 5
+    patience = 10
     best_val_loss = float("inf")
     epochs_no_improve = 0
     train_losses, val_losses = [], []
@@ -133,7 +133,7 @@ def TrainLSTMModel(ModelName):
         checkpoint = torch.load(os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt"))
         model.load_state_dict(checkpoint["state_dict"])
 
-    test_loader = DataLoader(test_dataset, batch_size=100)
+    test_loader = DataLoader(test_dataset, batch_size=128)
     model.eval()
     test_loss = 0
     with torch.no_grad():
