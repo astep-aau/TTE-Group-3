@@ -8,7 +8,10 @@ def predict_total_time(route, ModelName):
     model_path = Path(__file__).parent.parent / "Data" / "TrainedModels" / f"{ModelName}.pt"
     checkpoint = torch.load(model_path, map_location="cpu")
 
-    model = LSTMModel(input_size=64)
+    # Dynamically determine input size from the input route
+    # route is [seq_len, num_features]
+    input_dim = len(route[0])
+    model = LSTMModel(input_size=input_dim)
     model.load_state_dict(checkpoint["state_dict"])
 
     normalization = checkpoint["normalization"]
@@ -17,7 +20,7 @@ def predict_total_time(route, ModelName):
 
     model.eval()
     with torch.no_grad():
-        x = torch.tensor(route, dtype=torch.float32).unsqueeze(0)  # [1, seq_len, 5]
+        x = torch.tensor(route, dtype=torch.float32).unsqueeze(0)  # [1, seq_len, input_dim]
         
         # Model outputs one scalar
         out_norm = model(x)  # [1, 1]

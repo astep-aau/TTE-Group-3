@@ -47,6 +47,9 @@ namespace TrainingService.Services
             try
             {
                 string url = "http://127.0.0.1:8000/Python/calculate-route-time";
+                if (timeBucket.HasValue)
+                {
+
                 string jsonBody = JsonSerializer.Serialize(edges);
                 using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
 
@@ -67,7 +70,7 @@ namespace TrainingService.Services
             }
         }
 
-        public async Task<List<double[]>> GetEdgeVectors(List<int> edges)
+        public async Task<List<double[]>> GetEdgeVectors(List<int> edges, int? timeBucket = null)
         {
             if (edges == null || edges.Count == 0)
                 return new List<double[]>();
@@ -75,6 +78,11 @@ namespace TrainingService.Services
             try
             {
                 string url = "http://127.0.0.1:8000/Python/vectors";
+                if (timeBucket.HasValue)
+                {
+                    url += $"?timeBucket={timeBucket.Value}";
+                }
+
                 string jsonBody = JsonSerializer.Serialize(edges);
                 using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
 
@@ -125,13 +133,18 @@ namespace TrainingService.Services
             StatusTracker.Status = $"Created {edgeSequences.Count} routes";
             //For hver rute tjekker vi hvad den totale tid er.
             var sequenceCounter = 1;
+            var random = new Random();
+
             foreach (var edges in edgeSequences){
                 StatusTracker.Status = $"Processing sequence {sequenceCounter} of {edgeSequences.Count}";
                 sequenceCounter++;
                 Console.WriteLine($"Processing route: [{string.Join(", ", edges)}]");
 
-                double totalTime = await CreateTimeForRouteAsync(edges); // async call, but sequential
-                List<double[]> replacedEdges = await GetEdgeVectors(edges);
+                // Generate a random time bucket (0-287)
+                int timeBucket = random.Next(0, 288);
+
+                double totalTime = await CreateTimeForRouteAsync(edges, timeBucket); // async call, but sequential
+                List<double[]> replacedEdges = await GetEdgeVectors(edges, timeBucket);
 
                 var seq = new Sequence
                 {
@@ -141,12 +154,12 @@ namespace TrainingService.Services
                 
                 trainingSet.Sequences.Add(seq);
             }
-            
+
             var json = JsonSerializer.Serialize(trainingSet);
             File.WriteAllText("../Python/Service/Data/TrainingSet.JSON", json);
 
             await LstmTraining(modelName);
-            
+
             StatusTracker.Status = "Idle";
             return "Training Done";
         }

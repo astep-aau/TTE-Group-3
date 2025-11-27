@@ -5,7 +5,7 @@ import numpy as np
 from .embeddings_cache import get_embeddings
 
 # === Function to calculate edge traversal times ===
-def get_edge_time(route, traversalData, embeddings_dict):
+def get_edge_time(route, traversalData, embeddings_dict, timeBucket=None):
     #Compute the traversal times for each edge in the route based on traversal data.
     times = []                  #List of times for each edge in the route
     bucketsAvailable = set()    #Creates a empty set with all available buckets for the route
@@ -23,7 +23,10 @@ def get_edge_time(route, traversalData, embeddings_dict):
         return []
 
     # Chose a random bucket from the available buckets
-    chosen_bucket = random.choice(sorted(bucketsAvailable))
+    if timeBucket is not None:
+        chosen_bucket = timeBucket
+    else:
+        chosen_bucket = random.choice(sorted(bucketsAvailable))
 
     # Compute the time of each edge with the chosen bucket
     for edgeId in route:                 #Loop over each edge in the route
@@ -58,7 +61,7 @@ def get_edge_time(route, traversalData, embeddings_dict):
 
     return times
 
-def EdgeTraversalTime(route):
+def EdgeTraversalTime(route, timeBucket=None):
     InputFile = Path(__file__).parent.parent / "Data" / "RoadTraversal.json"
     Route = route
 
@@ -79,7 +82,7 @@ def EdgeTraversalTime(route):
         # Use cached embeddings instead of loading from file every time
         embeddingData = get_embeddings()
     
-        times = get_edge_time(Route, traversalData, embeddingData)
+        times = get_edge_time(Route, traversalData, embeddingData, timeBucket)
         return times
     except Exception as e:
         raise RuntimeError(str(e))
