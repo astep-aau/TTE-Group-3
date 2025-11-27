@@ -1,36 +1,58 @@
-import sys
 import json
+import sqlite3
 from pathlib import Path
 
-def convertEdgeToVector(embeddings, edges):
-    vectors = []
-    for edge in edges:
-        vector = embeddings.get(str(edge))
-        if vector is None:
-            raise ValueError('No vector for that Edge. (Missing values)')
-        vectors.append(vector)
-    return vectors
 
-def GetEdgeToVectors(edges, embedding_cache=None):
+def get_db_connection():
+    """Open a read-only connection to data.db"""
+    db_path = Path(__file__).parent.parent / "Data" / "data.db"
+    if not db_path.is_file():
+        raise FileNotFoundError('"data.db" does not exist. (Missing Dataset)')
+    
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        return conn
+    except sqlite3.Error as e:
+        raise RuntimeError(f"Database error: {str(e)}")
+
+
+def get_vector_from_db(edge_id: str, cursor):
+    """Fetch a single vector from the database by edge_id"""
+    cursor.execute("SELECT vector FROM embeddings WHERE edge_id = ?", (edge_id,))
+    row = cursor.fetchone()
+    
+    if row is None:
+        # TODO: Consider returning None or a default vector instead of raising
+        raise ValueError(f'No vector for edge {edge_id}. (Missing values)')
+    
+    return json.loads(row[0])
+
+
+def GetEdgeToVectors(edges):
+    """
+    Convert edge IDs to their vector embeddings from the database.
+    Uses individual queries to minimize memory usage.
+    """
     try:
         if not edges:
             raise ValueError('No route data provided. (Empty Route)')
 
-        # Prefer controller-provided cache
-        if embedding_cache is None:
-            InputFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
-            if not InputFile.is_file():
-                raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Missing dataset)')
-            with open(InputFile, "r") as f:
-                Embeddings = json.load(f)
-        else:
-            Embeddings = embedding_cache
-
-        vectors = convertEdgeToVector(Embeddings, edges)
+        vectors = []
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            for edge in edges:
+                edge_str = str(edge)
+                vector = get_vector_from_db(edge_str, cursor)
+                vectors.append(vector)
+            
+            cursor.close()
 
         if not vectors:
             raise ValueError('No Vectors Converted. (Error in Conversion)')
 
         return vectors
+        
     except Exception as e:
         raise RuntimeError(str(e))
