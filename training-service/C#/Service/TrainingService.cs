@@ -39,7 +39,7 @@ namespace TrainingService.Services
         }
 
         // Anden del af servicen, den står for at tage alle vores edges og udregne en samlet tid for sekvensen
-        public async Task<double> CreateTimeForRouteAsync(List<int> edges)
+        public async Task<double> CreateTimeForRouteAsync(List<int> edges, int? timeBucket = null)
         {
             if (edges == null || edges.Count == 0)
                 return 0.0;
@@ -49,6 +49,8 @@ namespace TrainingService.Services
                 string url = "http://127.0.0.1:8000/Python/calculate-route-time";
                 if (timeBucket.HasValue)
                 {
+                    url += $"?timeBucket={timeBucket.Value}";
+                }
 
                 string jsonBody = JsonSerializer.Serialize(edges);
                 using var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
