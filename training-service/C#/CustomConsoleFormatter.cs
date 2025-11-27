@@ -16,11 +16,16 @@ internal class CustomConsoleFormatter : ConsoleFormatter
             return;
         }
     
-        // Detect and colorize [C# Controller] prefix
+        // Detect and colorize prefixes
         if (message.StartsWith("[C# Controller]:"))
         {
             textWriter.Write("\e[36m[C# Controller]:\e[0m"); // Cyan color
             textWriter.WriteLine(message.AsSpan("[C# Controller]:".Length));
+        }
+        else if (message.StartsWith("[C# Service]:"))
+        {
+            textWriter.Write("\e[32m[C# Service]:\e[0m"); // Green color
+            textWriter.WriteLine(message.AsSpan("[C# Service]:".Length));
         }
         else
         {
