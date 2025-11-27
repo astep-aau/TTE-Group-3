@@ -1,10 +1,12 @@
 using Microsoft.OpenApi.Models;
+using TrainingService.Configuration;
 using TrainingService.Services;
 using TrainingService.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.Configure<PythonBackendSettings>(builder.Configuration.GetSection("PythonBackend"));
 
 // Register DI services
 builder.Services.AddSingleton<Service>();

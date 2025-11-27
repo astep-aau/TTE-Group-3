@@ -6,7 +6,7 @@ using TrainingService.Domain;
 using TrainingService.Infrastructure;
 using Xunit;
 
-namespace TrainingService.Tests.C_.Controller;
+namespace TrainingService.Tests.Controller;
 
 public class TestTrainingController
 {

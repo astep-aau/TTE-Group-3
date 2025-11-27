@@ -32,7 +32,7 @@ namespace TrainingService.Controllers
         /// An <see cref="IActionResult"/> containing the current training status.
         /// </returns>
         /// <response code="200">200 OK - Returns the current training status.</response>
-        [HttpGet("Training/status")]
+        [HttpGet("/Training/status")]
         public IActionResult GetStatus()
         {
             _logger.LogDebug("[C# Controller]: Status check requested");
