@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 # ----------------------------
 # Add the training-service folder to sys.path
 # ----------------------------
-sys.path.append(str(Path(__file__).resolve().parents[3]))
+sys.path.append(str(Path(__file__).resolve().parents[4]))
 
 from Python.Service.DatasetCreation.timeCreation import (
     get_db_connection,
