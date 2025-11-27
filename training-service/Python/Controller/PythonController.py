@@ -61,28 +61,14 @@ def _initialize_resources(embedding_path: Path = None):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Application lifespan context manager
-
-    Handles startup and shutdown events for the FastAPI application.
-
-    Startup:
-        - Loads edge embeddings from 'edgeEmbeddings.json' into app state.
-        - Logs successful or failed loading.
-
-    Shutdown:
-        - Logs application shutdown.
-        - Provides a hook for any future cleanup if needed.
-
-    Raises:
-        FileNotFoundError: If the 'edgeEmbeddings.json' file does not exist.
-        ValueError: If the file is empty or contains invalid JSON.
-
-    Usage:
-        This is automatically used when the FastAPI app is created:
-        
-        app = FastAPI(lifespan=lifespan)
+    Application lifespan context manager for future startup/shutdown tasks.
     """
     logger.info("🔵 Starting Python API...")
+    logger.info("✅ Database connections will be created per-request")
+    
+    yield
+    
+    logger.info("🔵 Shutting down API...")
 
     try:
         app.state.embedding_cache = _initialize_resources()
@@ -95,8 +81,15 @@ async def lifespan(app: FastAPI):
 
     logger.info("🔵 Shutting down API...")
 
+# -----------------------------
+# FastAPI App
+# -----------------------------
 app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
 
+
+# -----------------------------
+#     Endpoints
+# -----------------------------
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
     return {"predicted_time": predict_total_time(edges, ModelName)}
