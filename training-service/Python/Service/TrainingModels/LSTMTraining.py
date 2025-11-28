@@ -123,3 +123,4 @@ def TrainLSTMModel(ModelName):
     plt.savefig(os.path.join(output_dir, f"{ModelName}_TrainingData.png"))
     plt.close()
     print("Training done, best model saved.")
+    
