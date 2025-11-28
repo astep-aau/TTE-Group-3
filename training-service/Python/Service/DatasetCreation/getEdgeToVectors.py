@@ -10,10 +10,10 @@ def get_db_connection():
         raise FileNotFoundError('"data.db" does not exist. (Missing Dataset)')
     
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
         return conn
     except sqlite3.Error as e:
-        raise RuntimeError(f"Database error: {str(e)}")
+        raise RuntimeError(f"Database error: {e!r}") from e
 
 
 def get_vector_from_db(edge_id: str, cursor):

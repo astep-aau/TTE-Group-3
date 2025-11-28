@@ -145,9 +145,8 @@ def get_edge_time(route, db_connection):
                                     dist_val = float(dists[order[i]])
                                     logger.info(f"Edge {edgeId}: Using neighbor {other_edge_id} (dist={dist_val:.4f}, bucket={closest_bucket}, time={found_time:.2f}s)")
                                     break
-                except Exception as e:
-                    logger.error(f"Edge {edgeId}: Embedding fallback error: {e}")
-                    print(f"Embedding fallback error for edge {edge}: {e}", file=sys.stderr)
+                except (sqlite3.Error, json.JSONDecodeError, np.linalg.LinAlgError) as e:
+                    logger.exception(f"Edge {edgeId}: Embedding fallback error")
 
                 final_time = found_time if found_time is not None else 5.0
                 times.append(final_time)

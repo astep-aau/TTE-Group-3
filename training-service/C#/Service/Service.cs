@@ -312,7 +312,7 @@ public class Service
             StatusTracker.Status = $"Created {edgeSequences.Count} routes";
 
             var resultsBag = new ConcurrentBag<Sequence>();
-            var semaphore = new SemaphoreSlim(4);
+            var semaphore = new SemaphoreSlim(40);
             var tasks = new List<Task>();
             var sequenceCounter = 1;
 
