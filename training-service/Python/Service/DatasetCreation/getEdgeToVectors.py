@@ -11,6 +11,15 @@ def get_db_connection():
     
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
+        
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA integrity_check;")
+        result = cursor.fetchone()
+        cursor.close()
+        if result[0] != "ok":
+            conn.close()
+            raise RuntimeError("Database is corrupted!")
+        
         return conn
     except sqlite3.Error as e:
         raise RuntimeError(f"Database error: {e!r}") from e

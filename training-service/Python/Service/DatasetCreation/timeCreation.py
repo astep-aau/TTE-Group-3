@@ -30,7 +30,7 @@ def get_db_connection():
 
         return conn
     except sqlite3.Error as e:
-        raise RuntimeError(f"Database error: {str(e)}")
+        raise RuntimeError(f"Database error: {e!r}") from e
 
 
 def get_all_embeddings(cursor):
@@ -196,4 +196,4 @@ def EdgeTraversalTime(route):
             return result
     except Exception as e:
         logger.error(f"Error in EdgeTraversalTime: {e}", exc_info=True)
-        raise RuntimeError(f"Error calculating edge times: {e}")
+        raise RuntimeError(f"Error calculating edge times: {e}") from e

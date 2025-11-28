@@ -25,7 +25,7 @@ public class Service
         _pythonSettings = pythonSettings.Value;
         _client = httpClient ?? new HttpClient
         {
-            Timeout = TimeSpan.FromMinutes(1000),
+            Timeout = Timeout.InfiniteTimeSpan,
             DefaultRequestVersion = HttpVersion.Version11,
             DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
         };
@@ -207,18 +207,26 @@ public class Service
     {
         _logger.LogInformation("[C# Service]: Starting LSTM training for model: {ModelName}", modelName);
         StatusTracker.Status = "LSTM Training";
-
+    
         try
         {
             string endpoint = _pythonSettings.Endpoints.TrainLstm.Replace("{modelName}", modelName);
             var url = $"{_pythonSettings.BaseUrl}{endpoint}";
-
-            HttpResponseMessage response = await _client.PostAsync(url, null);
+    
+            using var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromHours(2)); // Adjust based on expected training duration
+    
+            HttpResponseMessage response = await _client.PostAsync(url, null, cts.Token);
             response.EnsureSuccessStatusCode();
-
+    
             string responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("[C# Service]: LSTM training completed for model: {ModelName}. Response: {Response}",
                 modelName, responseContent);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogError(ex, "[C# Service]: LSTM training timed out for model: {ModelName}", modelName);
+            throw new TimeoutException($"LSTM training exceeded timeout for model: {modelName}", ex);
         }
         catch (HttpRequestException ex)
         {
@@ -244,21 +252,30 @@ public class Service
     {
         _logger.LogInformation("[C# Service]: Uploading training set with {SequenceCount} sequences for model: {ModelName}",
             trainingSet.Sequences.Count, modelName);
-
+    
         try
         {
             byte[] fileBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(trainingSet));
             using var streamContent = new ByteArrayContent(fileBytes);
             using var form = new MultipartFormDataContent();
             form.Add(streamContent, "file", "TrainingSet.json");
-
+    
             var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.TrainingFile}";
-            HttpResponseMessage response = await _client.PostAsync(url, form);
+            
+            using var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromMinutes(10)); // Adjust based on expected upload duration
+            
+            HttpResponseMessage response = await _client.PostAsync(url, form, cts.Token);
             response.EnsureSuccessStatusCode();
-
+    
             _logger.LogInformation("[C# Service]: Successfully uploaded training set for model: {ModelName}", modelName);
-
+    
             await LstmTraining(modelName);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogError(ex, "[C# Service]: Training set upload timed out for model: {ModelName}", modelName);
+            throw new TimeoutException($"Training set upload exceeded timeout for model: {modelName}", ex);
         }
         catch (HttpRequestException ex)
         {
