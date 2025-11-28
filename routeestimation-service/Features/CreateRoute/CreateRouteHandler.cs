@@ -78,7 +78,7 @@ public class CreateRouteHandler : ICreateRouteHandler
             payload.ProcessId, route.RouteId, route);
         
         // Handle the time estimation
-        _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
+        _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}, ModelVersion={ModelVersion}", payload.ProcessId, routeResult.Value.RouteId, payload.ModelVersion);
         
         // Calculate time bucket (0-287)
         int timeBucket = (payload.TimeOfTravel.Hour * 60 + payload.TimeOfTravel.Minute) / 5;

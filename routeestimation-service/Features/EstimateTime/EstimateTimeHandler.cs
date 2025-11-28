@@ -30,6 +30,7 @@ public class EstimateTimeHandler
     public Result<RouteResult> EstimateTime(RouteResult route, int timeBucket, string modelName )
     {
         if (route == null) return Result.Fail<RouteResult>("Route cannot be null");
+        if (string.IsNullOrWhiteSpace(modelName)) return Result.Fail<RouteResult>("Model name cannot be null or empty");
 
         _logger.LogInformation("[EstimateTimeHandler] Estimating time for RouteId={RouteId} with EdgeIds=[{EdgeIds}] and TimeBucket={TimeBucket}",
             route.RouteId, route.EdgeIds, timeBucket);
@@ -76,7 +77,7 @@ public class EstimateTimeHandler
         try
         {
             response = http.PostAsync(
-                $"{_pythonServiceBaseUrl}/Python/predict-time",
+                $"{_pythonServiceBaseUrl}/Python/predict-time/{modelName}",
                 new StringContent(embeddedEdges, Encoding.UTF8, "application/json")
             ).GetAwaiter().GetResult();
         }
