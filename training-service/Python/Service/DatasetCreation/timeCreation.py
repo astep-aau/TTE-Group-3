@@ -57,7 +57,7 @@ def get_edge_time(route, db_connection):
         cursor.execute(f"""
             SELECT DISTINCT traversal_id
             FROM traversals
-            WHERE node_id IN ({placeholders})
+            WHERE edge_id IN ({placeholders})
         """, route)
         for row in cursor.fetchall():
             bucketsAvailable.add(int(row[0]))
@@ -78,7 +78,7 @@ def get_edge_time(route, db_connection):
             cursor.execute("""
                 SELECT traversal_id, time_s
                 FROM traversals
-                WHERE node_id = ?
+                WHERE edge_id = ?
             """, (edgeId,))
             rows = cursor.fetchall()
             logger.debug(f"Edge {edgeId}: Found {len(rows)} traversal rows")
@@ -117,9 +117,9 @@ def get_edge_time(route, db_connection):
 
                             placeholders_neighbors = ",".join("?" * len(nearest_edge_ids))
                             cursor.execute(f"""
-                                SELECT DISTINCT node_id
+                                SELECT DISTINCT edge_id
                                 FROM traversals
-                                WHERE node_id IN ({placeholders_neighbors})
+                                WHERE edge_id IN ({placeholders_neighbors})
                             """, nearest_edge_ids)
                             available_neighbors = {row[0] for row in cursor.fetchall()}
                             logger.debug(f"Edge {edgeId}: {len(available_neighbors)}/{top_k} neighbors have data")
@@ -134,7 +134,7 @@ def get_edge_time(route, db_connection):
                                 cursor.execute("""
                                     SELECT traversal_id, time_s
                                     FROM traversals
-                                    WHERE node_id = ?
+                                    WHERE edge_id = ?
                                 """, (other_edge_id,))
                                 neighbor_rows = cursor.fetchall()
                                 if neighbor_rows:

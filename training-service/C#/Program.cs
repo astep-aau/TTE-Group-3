@@ -5,21 +5,31 @@ using TrainingService.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load appsettings from parent directory
+string parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName 
+                   ?? Directory.GetCurrentDirectory();
+
+builder.Configuration
+    .SetBasePath(parentDir)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
 builder.Services.AddControllers();
 builder.Services.Configure<PythonBackendSettings>(builder.Configuration.GetSection("PythonBackend"));
 
 // Register DI services
 builder.Services.AddSingleton<Service>();
 builder.Services.AddSingleton<TrainingQueue>();
+builder.Services.AddSingleton<ITrainingQueue>(sp => sp.GetRequiredService<TrainingQueue>());
 builder.Services.AddHostedService<TrainingWorker>();
-builder.Services.AddScoped<ApiKeyAuthFilter>();
+builder.Services.AddSingleton<ApiKeyAuthFilter>();
 builder.Logging.AddConsole(options =>
 {
     options.FormatterName = "customFormatter";
 });
 
 builder.Logging.AddConsoleFormatter<CustomConsoleFormatter, CustomConsoleFormatterOptions>();
-
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

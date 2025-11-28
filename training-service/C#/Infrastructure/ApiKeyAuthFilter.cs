@@ -27,7 +27,8 @@ public class ApiKeyAuthFilter : IAuthorizationFilter
         string? apiKey = _configuration["ApiKey"];
         if (string.IsNullOrEmpty(apiKey))
         {
-            _logger.LogError("API key not configured in appsettings");
+            _logger.LogError("API key not configured in appsettings. Configuration value: {ConfigValue}", 
+                apiKey ?? "null");
             context.Result = new StatusCodeResult(StatusCodes.Status500InternalServerError);
             return;
         }
