@@ -6,7 +6,22 @@ from .embeddings_cache import get_embeddings
 
 # === Function to calculate edge traversal times ===
 def get_edge_time(route, traversalData, embeddings_dict, timeBucket=None):
-    #Compute the traversal times for each edge in the route based on traversal data.
+    """
+    Compute the traversal times for each edge in the route based on traversal data.
+    Args:
+        route: List of edge IDs in the route.
+        traversalData: Dictionary containing traversal time data for edges.
+        embeddings_dict: Dictionary of edge embeddings.
+        timeBucket: Optional time bucket (0-287) for time-specific traversal times.
+            If None, a random available bucket is selected.
+    Returns:
+        List of traversal times for each edge.
+    """
+    
+    # Input validation for timeBucket
+    if timeBucket is not None and (timeBucket < 0 or timeBucket > 287):
+        raise ValueError(f'timeBucket must be between 0 and 287, got {timeBucket}')
+
     times = []                  #List of times for each edge in the route
     bucketsAvailable = set()    #Creates a empty set with all available buckets for the route
 

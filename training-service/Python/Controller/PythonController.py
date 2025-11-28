@@ -60,7 +60,14 @@ def calculateRouteTime(route: List[int], timeBucket: int = None):
     return EdgeTraversalTime(route, timeBucket)
 
 @app.post("/Python/vectors")
-def getEdgeToVectors(edges: List[int], timeBucket: int = None):
+def get_edge_to_vectors(
+    edges: List[int] = Body(..., example=[1, 2, 3]),
+    timeBucket: Optional[int] = Query(
+        None, ge=0, le=287,
+        description="Optional time bucket (0..287)"
+    )
+):
+    # timeBucket is already validated by Query(ge=0, le=287)
     return GetEdgeToVectors(edges, timeBucket)
 
 @app.post("/Python/vector-embedding")
