@@ -29,34 +29,6 @@ from DatasetCreation.getEdgeToVectors import GetEdgeToVectors
 from VectorEmbedding.Edge2Vec import VectorEmbedding
 from TrainingModels.LSTMTraining import TrainLSTMModel
 
-def _initialize_resources(embedding_path: Path = None):
-    """
-    Load the edgeEmbeddings.json file and return its contents.
-
-    Logs steps and errors to help debugging resource loading.
-    """
-    if embedding_path is None:
-        embedding_path = Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
-
-    logger.info("🔹 Loading edge embeddings")
-
-    if not embedding_path.is_file():
-        logger.error("❌ edgeEmbeddings.json does not exist")
-        raise FileNotFoundError('"edgeEmbeddings.json" does not exist. (Missing Dataset)')
-
-    try:
-        with open(embedding_path, "r") as f:
-            embedding_cache = json.load(f)
-        if not embedding_cache:
-            logger.error("❌ edgeEmbeddings.json is empty.")
-            raise ValueError('"edgeEmbeddings.json" is empty.')
-        logger.info("✅ Successfully loaded edge embeddings")
-    except json.JSONDecodeError as e:
-        logger.error("❌ Invalid JSON in edgeEmbeddings.json")
-        raise ValueError(f"Invalid JSON in edgeEmbeddings.json: {str(e)}")
-
-    return embedding_cache
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,16 +42,6 @@ async def lifespan(app: FastAPI):
     
     logger.info("🔵 Shutting down API...")
 
-    try:
-        app.state.embedding_cache = _initialize_resources()
-        logger.info("✅ Edge embeddings loaded.")
-    except Exception as e:
-        logger.error(f"❌ Failed loading embedding cache: {e}")
-        raise e
-
-    yield
-
-    logger.info("🔵 Shutting down API...")
 
 # -----------------------------
 # FastAPI App
@@ -117,14 +79,12 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
 
 @app.post("/Python/calculate-route-time")
 def calculateRouteTime(route: List[int]):
-    embedding_cache = getattr(app.state, "embedding_cache", None)
-    return EdgeTraversalTime(route, embedding_cache=embedding_cache)
+    return EdgeTraversalTime(route)
 
 
 @app.post("/Python/vectors")
 def getEdgeToVectors(edges: List[int]):
-    embedding_cache = getattr(app.state, "embedding_cache", None)
-    return GetEdgeToVectors(edges, embedding_cache=embedding_cache)
+    return GetEdgeToVectors(edges)
 
 
 @app.post("/Python/vector-embedding")
