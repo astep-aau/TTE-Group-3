@@ -31,7 +31,7 @@ def mock_db(tmp_path):
     # Create tables
     cursor.execute("""
         CREATE TABLE traversals (
-            node_id INTEGER,
+            edge_id INTEGER,
             traversal_id INTEGER,
             time_s REAL
         )
