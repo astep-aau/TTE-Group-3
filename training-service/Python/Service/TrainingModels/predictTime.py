@@ -8,7 +8,7 @@ def predict_total_time(route, ModelName):
     model_path = Path(__file__).parent.parent / "Data" / "TrainedModels" / f"{ModelName}.pt"
     checkpoint = torch.load(model_path, map_location="cpu")
 
-    model = LSTMModel(input_size=64)
+    model = LSTMModel(input_size=128)
     model.load_state_dict(checkpoint["state_dict"])
 
     normalization = checkpoint["normalization"]
