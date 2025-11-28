@@ -34,7 +34,7 @@ def GetEdgeToVectors(edges):
     Uses individual queries to minimize memory usage.
     """
     try:
-        if not edges:
+        if not edges: #Check if the data is empty, if it is raise an error.
             raise ValueError('No route data provided. (Empty Route)')
 
         vectors = []

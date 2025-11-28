@@ -7,6 +7,7 @@ using translator_service;
 using translator_service.API;
 using translator_service.Features.CreateProcess;
 using MassTransit;
+using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -84,9 +85,18 @@ builder.Services.AddCors(options =>
         policy  =>
         {
             // Allow your frontend's origin
-            policy.WithOrigins("http://localhost:3000")
+            policy.WithOrigins("http://localhost:3000",
+                    "https://cs-astep02.srv.aau.dk",
+                    "http://cs-astep02.srv.aau.dk",
+                    "http://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
+                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk",
+                    "https://cs-astep02.srv.aau.dk/group3/",
+                    "http://cs-astep02.srv.aau.dk/group3/",
+                    "http://cs-25-sw-5-03.cs-astep02.srv.aau.dk/group3/",
+                    "https://cs-25-sw-5-03.cs-astep02.srv.aau.dk/group3/")
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         });
 });
 
@@ -122,6 +132,8 @@ app.UseSerilogRequestLogging(options =>
         diagnosticContext.Set("ClientIP", httpContext.Connection.RemoteIpAddress?.ToString());
     };
 });
+
+app.UsePathBase(new PathString("/api"));
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
