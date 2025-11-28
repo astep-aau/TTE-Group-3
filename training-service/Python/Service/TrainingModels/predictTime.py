@@ -28,7 +28,7 @@ def predict_total_time(route, ModelName):
 
     model.eval()
     with torch.no_grad():
-        x = torch.tensor(route, dtype=torch.float32).unsqueeze(0)  # [1, seq_len, input_dim]
+        x = torch.tensor(route, dtype=torch.float32).unsqueeze(0)  # [1, seq_len, input_size]
         
         # Model outputs one scalar
         out_norm = model(x)  # [1, 1]
