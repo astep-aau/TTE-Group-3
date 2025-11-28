@@ -129,13 +129,16 @@ namespace TrainingService.Services
 
         public async Task UploadTrainingSetAsync(TrainingSet trainingSet, string modelName){
             _logger.LogInformation("Uploading training set");
-            byte[] fileBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(trainingSet));
-            using var streamContent = new ByteArrayContent(fileBytes);
-            using var form = new MultipartFormDataContent();
-            form.Add(streamContent, "file", "TrainingSet.json"); // meaningful filename
+            // Serialize to JSON
+            string trainingJSON = JsonSerializer.Serialize(trainingSet, new JsonSerializerOptions
+            {
+                WriteIndented = false
+            });
 
-            HttpResponseMessage response = await client.PostAsync("http://127.0.0.1:8000/Python/TrainingFile", form);
-            response.EnsureSuccessStatusCode();
+            // Save JSON to file
+            File.WriteAllText("../Python/Service/Data/TrainingSet.json", trainingJSON);
+
+            Console.WriteLine($"Saved {trainingSet.Sequences.Count} sequences");
             _logger.LogInformation("Uploaded training set, starting LSTM training");
 
             await LstmTraining(modelName);
@@ -162,7 +165,7 @@ namespace TrainingService.Services
             var resultsBag = new ConcurrentBag<Sequence>();
 
             // Semaphore to limit parallelism to 4 routes at a time
-            var semaphore = new SemaphoreSlim(4);
+            var semaphore = new SemaphoreSlim(40);
             var totalStopwatch = Stopwatch.StartNew();
             var tasks = new List<Task>();
             int sequenceCounter = 1;            
