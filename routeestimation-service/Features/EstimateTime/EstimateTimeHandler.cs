@@ -31,7 +31,7 @@ public class EstimateTimeHandler
     {
         if (route == null) return Result.Fail<RouteResult>("Route cannot be null");
         if (string.IsNullOrWhiteSpace(modelName)) return Result.Fail<RouteResult>("Model name cannot be null or empty");
-
+ if (timeBucket < 0 || timeBucket > 287) return Result.Fail<RouteResult>("TimeBucket must be between 0 and 287");
         _logger.LogInformation("[EstimateTimeHandler] Estimating time for RouteId={RouteId} with EdgeIds=[{EdgeIds}] and TimeBucket={TimeBucket}",
             route.RouteId, route.EdgeIds, timeBucket);
 
