@@ -3,7 +3,20 @@ from typing import List
 from pathlib import Path
 import sys
 import json
+import logging
 from contextlib import asynccontextmanager
+
+# Setup logging for the python API
+logger = logging.getLogger("Python Controller")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setFormatter(logging.Formatter(
+        "\033[1m%(name)s\033[0m - "
+        "\033[33m%(levelname)s\033[0m - "
+        "%(message)s"
+    ))
+    logger.addHandler(ch)
 
 # Add Helpers folder to sys.path
 helpers_path = Path(__file__).parent.parent / "Service"
@@ -17,47 +30,17 @@ from VectorEmbedding.Edge2Vec import VectorEmbedding
 from TrainingModels.LSTMTraining import TrainLSTMModel
 
 
-# -----------------------------
-# Resource loader (cache)
-# -----------------------------
-def _initialize_resources():
-    """Load the edgeEmbeddings.json file and return its contents."""
-    embedding_path = (
-        Path(__file__).parent.parent / "Service" / "Data" / "edgeEmbeddings.json"
-    )
-
-    if not embedding_path.is_file():
-        raise FileNotFoundError('"edgeEmbeddings.json" does not exist. (Missing Dataset)')
-
-    try:
-        with open(embedding_path, "r") as f:
-            embedding_cache = json.load(f)
-        if not embedding_cache:
-            raise ValueError('"edgeEmbeddings.json" is empty.')
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in edgeEmbeddings.json: {str(e)}")
-
-    return embedding_cache
-
-
-# -----------------------------
-# Lifespan (startup + shutdown)
-# -----------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🔵 Starting Python API...")
-
-    try:
-        app.state.embedding_cache = _initialize_resources()
-        print("✅ Edge embeddings loaded.")
-    except Exception as e:
-        print(f"❌ Failed loading embedding cache: {e}")
-        raise e
-
-    yield  # Application runs here
-
-    print("🔵 Shutting down API...")
-    # No cleanup needed, but hook is here if needed
+    """
+    Application lifespan context manager for future startup/shutdown tasks.
+    """
+    logger.info("🔵 Starting Python API...")
+    logger.info("✅ Database connections will be created per-request")
+    
+    yield
+    
+    logger.info("🔵 Shutting down API...")
 
 
 # -----------------------------
@@ -96,14 +79,12 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
 
 @app.post("/Python/calculate-route-time")
 def calculateRouteTime(route: List[int]):
-    embedding_cache = getattr(app.state, "embedding_cache", None)
-    return EdgeTraversalTime(route, embedding_cache=embedding_cache)
+    return EdgeTraversalTime(route)
 
 
 @app.post("/Python/vectors")
 def getEdgeToVectors(edges: List[int]):
-    embedding_cache = getattr(app.state, "embedding_cache", None)
-    return GetEdgeToVectors(edges, embedding_cache=embedding_cache)
+    return GetEdgeToVectors(edges)
 
 
 @app.post("/Python/vector-embedding")
