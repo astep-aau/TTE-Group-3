@@ -27,9 +27,10 @@ public class EstimateTimeHandler
         _pythonServiceBaseUrl = configuration.GetValue<string>("PythonService:BaseUrl") ?? "http://training-service-python";
     }
     
-    public Result<RouteResult> EstimateTime(RouteResult route)
+    public Result<RouteResult> EstimateTime(RouteResult route, string modelName)
     {
         if (route == null) return Result.Fail<RouteResult>("Route cannot be null");
+        if (string.IsNullOrWhiteSpace(modelName)) return Result.Fail<RouteResult>("Model name cannot be null or empty");
 
         _logger.LogInformation("[EstimateTimeHandler] Estimating time for RouteId={RouteId} with EdgeIds=[{EdgeIds}]",
             route.RouteId, route.EdgeIds);
@@ -76,7 +77,7 @@ public class EstimateTimeHandler
         try
         {
             response = http.PostAsync(
-                $"{_pythonServiceBaseUrl}/Python/predict-time",
+                $"{_pythonServiceBaseUrl}/Python/predict-time/{modelName}",
                 new StringContent(embeddedEdges, Encoding.UTF8, "application/json")
             ).GetAwaiter().GetResult();
         }

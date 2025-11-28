@@ -78,8 +78,8 @@ public class CreateRouteHandler : ICreateRouteHandler
             payload.ProcessId, route.RouteId, route);
         
         // Handle the time estimation
-        _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}", payload.ProcessId, routeResult.Value.RouteId);
-        var estimationResult = _estimateTimeHandler.EstimateTime(route);
+        _logger.LogInformation("[RouteHandler] Estimating time for ProcessId={ProcessId}, RouteId={RouteId}, ModelVersion={ModelVersion}", payload.ProcessId, routeResult.Value.RouteId, payload.ModelVersion);
+        var estimationResult = _estimateTimeHandler.EstimateTime(route, payload.ModelVersion);
         if (!estimationResult.IsSuccess)
         {
             string errorMessage = string.Join(", ", estimationResult.Errors.Select(e => e.Message).Where(m => !string.IsNullOrWhiteSpace(m)));
