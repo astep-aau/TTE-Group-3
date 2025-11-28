@@ -80,24 +80,21 @@ def EdgeTraversalTime(route, timeBucket=None):
     InputFile = Path(__file__).parent.parent / "Data" / "RoadTraversal.json"
     Route = route
 
-    try:
-        if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
-            raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
-    
-        if not Route: #Check if the data is empty, if it is raise an error.
-            raise ValueError('No route data provided. (Empty Route)')
+    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+        raise FileNotFoundError(f'"RoadTraversal.json" does not exist. (Mising Dataset)')
 
-        #Opens the file and load data into "traversalData".
-        with open(InputFile, "r") as f:
-            traversalData = json.load(f)
+    if not Route: #Check if the data is empty, if it is raise an error.
+        raise ValueError('No route data provided. (Empty Route)')
 
-        if not traversalData: #Check if travalsalData is empty, if it is raise an error.
-            raise ValueError('"RoadTraversal.json" is empty or not loaded. (Empty Dataset)')
-    
-        # Use cached embeddings instead of loading from file every time
-        embeddingData = get_embeddings()
-    
-        times = get_edge_time(Route, traversalData, embeddingData, timeBucket)
-        return times
-    except Exception as e:
-        raise RuntimeError(str(e))
+    #Opens the file and load data into "traversalData".
+    with open(InputFile, "r") as f:
+        traversalData = json.load(f)
+
+    if not traversalData: #Check if travalsalData is empty, if it is raise an error.
+        raise ValueError('"RoadTraversal.json" is empty or not loaded. (Empty Dataset)')
+
+    # Use cached embeddings instead of loading from file every time
+    embeddingData = get_embeddings()
+
+    times = get_edge_time(Route, traversalData, embeddingData, timeBucket)
+    return times

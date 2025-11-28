@@ -1,6 +1,5 @@
 import sys
 from .embeddings_cache import get_embeddings
-from fastapi import HTTPException
 import math
 
 # ===Function that converts a list of edges to their vectors===
@@ -39,20 +38,18 @@ def convertEdgeToVector(embeddings, edges, timeBucket=None):
 
 def GetEdgeToVectors(edges, timeBucket=None):
     if timeBucket is not None and (timeBucket < 0 or timeBucket > 287):
-        raise HTTPException(status_code=400, detail=f"timeBucket must be between 0 and 287, got {timeBucket}")
-    try:
-        if not edges: #Check if the data is empty, if it is raise an error.
-            raise ValueError('No route data provided. (Empty Route)')
-
-        # Use cached embeddings instead of loading from file every time
-        Embeddings = get_embeddings()
-
-        #Call the function that converts edges to their vectors
-        vectors = convertEdgeToVector(Embeddings, edges, timeBucket)
-
-        if not vectors: #Check if the data is empty, if it is raise an error.
-            raise ValueError('No Vectors Converted. (Error in Conversion)')
+        raise ValueError(f"timeBucket must be between 0 and 287, got {timeBucket}")
     
-        return vectors
-    except Exception as e:
-        raise RuntimeError(str(e))
+    if not edges: #Check if the data is empty, if it is raise an error.
+        raise ValueError('No route data provided. (Empty Route)')
+
+    # Use cached embeddings instead of loading from file every time
+    Embeddings = get_embeddings()
+
+    #Call the function that converts edges to their vectors
+    vectors = convertEdgeToVector(Embeddings, edges, timeBucket)
+
+    if not vectors: #Check if the data is empty, if it is raise an error.
+        raise ValueError('No Vectors Converted. (Error in Conversion)')
+
+    return vectors
