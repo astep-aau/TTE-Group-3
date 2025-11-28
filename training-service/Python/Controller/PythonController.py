@@ -56,7 +56,13 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
     
 # Endpoint for a single route
 @app.post("/Python/calculate-route-time")
-def calculateRouteTime(route: List[int], timeBucket: int = None):
+def calculateRouteTime(
+    route: List[int],
+    timeBucket: Optional[int] = Query(
+        None, ge=0, le=287,
+        description="Optional time bucket (0..287)"
+    )
+):
     return EdgeTraversalTime(route, timeBucket)
 
 @app.post("/Python/vectors")
