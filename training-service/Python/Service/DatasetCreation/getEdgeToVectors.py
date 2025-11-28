@@ -24,6 +24,8 @@ def convertEdgeToVector(embeddings, edges, timeBucket=None):
         
         # If timeBucket is provided, append sinusoidal encoding
         if timeBucket is not None:
+            if timeBucket < 0 or timeBucket > 287:
+                raise ValueError(f'timeBucket must be between 0 and 287, got {timeBucket}')
             # Normalize time bucket (0-287) to 0-2pi
             # 288 buckets in a day (5 min intervals)
             time_angle = 2 * math.pi * timeBucket / 288.0
