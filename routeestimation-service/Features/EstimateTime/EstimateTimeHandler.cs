@@ -27,7 +27,7 @@ public class EstimateTimeHandler
         _pythonServiceBaseUrl = configuration.GetValue<string>("PythonService:BaseUrl") ?? "http://training-service-python";
     }
     
-    public Result<RouteResult> EstimateTime(RouteResult route, int timeBucket)
+    public Result<RouteResult> EstimateTime(RouteResult route, int timeBucket, string modelName )
     {
         if (route == null) return Result.Fail<RouteResult>("Route cannot be null");
 

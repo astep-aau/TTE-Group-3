@@ -83,7 +83,7 @@ public class CreateRouteHandler : ICreateRouteHandler
         // Calculate time bucket (0-287)
         int timeBucket = (payload.TimeOfTravel.Hour * 60 + payload.TimeOfTravel.Minute) / 5;
         
-        var estimationResult = _estimateTimeHandler.EstimateTime(route, timeBucket);
+var estimationResult = _estimateTimeHandler.EstimateTime(route, timeBucket, payload.ModelVersion);
         if (!estimationResult.IsSuccess)
         {
             string errorMessage = string.Join(", ", estimationResult.Errors.Select(e => e.Message).Where(m => !string.IsNullOrWhiteSpace(m)));
