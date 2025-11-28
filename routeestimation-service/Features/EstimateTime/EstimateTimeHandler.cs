@@ -76,7 +76,7 @@ public class EstimateTimeHandler
         try
         {
             response = http.PostAsync(
-                $"{_pythonServiceBaseUrl}/Python/predict-time/",
+                $"{_pythonServiceBaseUrl}/Python/predict-time",
                 new StringContent(embeddedEdges, Encoding.UTF8, "application/json")
             ).GetAwaiter().GetResult();
         }
