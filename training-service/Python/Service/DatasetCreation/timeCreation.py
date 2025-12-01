@@ -93,15 +93,11 @@ def get_edge_time(route, db_connection):
                     target_row = cursor.fetchone()
 
                     if target_row:
-                        logger.debug(f"Edge {edgeId}: Found in embeddings table")
                         target_vec = np.array(json.loads(target_row[0]), dtype=np.float32)
-                        logger.debug(f"Edge {edgeId}: Target vector shape: {target_vec.shape}")
 
                         # Load all other embeddings for comparison
                         all_embeddings = get_all_embeddings(cursor)
                         other_items = [(k, v) for k, v in all_embeddings.items() if k != edge]
-
-                        logger.debug(f"Edge {edgeId}: Built {len(other_items)} comparison vectors")
 
                         if other_items:
                             other_keys, other_vecs = zip(*other_items)
@@ -170,20 +166,10 @@ def get_edge_time(route, db_connection):
         cursor.close()
         logger.debug("Database cursor closed")
 
-    logger.info(f"=== Completed get_edge_time ===")
-    logger.info(f"Computed {len(times)} times: {times}")
-    logger.info(f"Total route time: {sum(times):.2f}s\n")
     return times
 
 
 def EdgeTraversalTime(route):
-    """Calculate traversal times for a route using database connection"""
-    logger.info(f"\n{'='*60}")
-    logger.info(f"EdgeTraversalTime called")
-    logger.info(f"Route: {route}")
-    logger.info(f"Route length: {len(route) if route else 0}")
-    logger.info(f"{'='*60}\n")
-
     if not route:
         logger.error("Empty route provided")
         raise ValueError('No route data provided. (Empty Route)')
