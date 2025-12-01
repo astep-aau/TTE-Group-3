@@ -53,11 +53,11 @@ def TrainLSTMModel(ModelName):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-# Fetch all vectors and their lengths
+    # Fetch all vectors and their lengths
     cursor.execute("SELECT VECTOR, LENGTH_CM FROM embeddings")
     rows = cursor.fetchall()
 
-# VECTOR might be stored as a string or binary; convert to tuple/list if needed
+    # VECTOR might be stored as a string or binary; convert to tuple/list if needed
     vector_to_length = {}
     for vec, length in rows:
         # Example if VECTOR stored as string '[1.0, 2.0, ...]'
@@ -111,8 +111,11 @@ def TrainLSTMModel(ModelName):
     criterion = nn.SmoothL1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
+    # Extract dropout value from model
+    dropout_value = [layer.p for layer in model.fc_layers if isinstance(layer, nn.Dropout)][0]
+
     # -----------------------------
-    # 3️⃣ Training loop
+    # Training loop
     # -----------------------------
     num_epochs = 35
     patience = 3
@@ -146,7 +149,7 @@ def TrainLSTMModel(ModelName):
             for xb, yb in val_loader:
                 xb, yb = xb.to(device), yb.to(device)
                 out_norm = model(xb)
-                out_seconds = denormalize_targets(out_norm)  # <- correctly denormalize
+                out_seconds = denormalize_targets(out_norm)
                 val_loss += criterion(out_seconds, yb) * xb.size(0)
         val_loss /= len(val_loader.dataset)
         val_losses.append(val_loss.item())
@@ -157,10 +160,25 @@ def TrainLSTMModel(ModelName):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             epochs_no_improve = 0
-            normalization_dict = {"mean": mean_y, "std": std_y}
-            os.makedirs(output_dir / f"{ModelName}Model" , exist_ok=True)
-            torch.save({"state_dict": model.state_dict(), "normalization": normalization_dict},
-            os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt"))
+            
+            # Extract fc_layers architecture
+            fc_architecture = []
+            for layer in model.fc_layers:
+                if isinstance(layer, nn.Linear):
+                    fc_architecture.append(layer.out_features)
+            
+            # Create checkpoint dictionary
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "normalization": {"mean": mean_y, "std": std_y},
+                "input_size": model.lstm.input_size,
+                "hidden_size": model.lstm.hidden_size,
+                "fc_architecture": fc_architecture,
+                "dropout": dropout_value,
+            }
+            
+            os.makedirs(output_dir / f"{ModelName}Model", exist_ok=True)
+            torch.save(checkpoint, os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt"))
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
@@ -168,7 +186,7 @@ def TrainLSTMModel(ModelName):
                 break
 
     # -----------------------------
-    # 4️⃣ Plot training
+    # Plot training
     # -----------------------------
     plotInfoTrainingGraph = {
         "type": "line",
@@ -182,8 +200,8 @@ def TrainLSTMModel(ModelName):
 
     plotInfoGapGraph = {
         "type": "line",
-        "x": [list(range(1, len(train_losses)+1))],  # same x for all points
-        "y": [[val_losses[i] - train_losses[i] * std_y.item() for i in range(len(train_losses))]],  # scale training loss properly
+        "x": [list(range(1, len(train_losses)+1))],
+        "y": [[val_losses[i] - train_losses[i] * std_y.item() for i in range(len(train_losses))]],
         "xlabel": "Epoch",
         "ylabel": "Validation - Training Loss (seconds)",
         "title": "Generalization Gap",
@@ -191,16 +209,17 @@ def TrainLSTMModel(ModelName):
     }
 
     # -----------------------------
-    # 5️⃣ Test evaluation
+    # Test evaluation
     # -----------------------------
-    if best_val_loss < float("inf"):
-        checkpoint = torch.load(os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt"))
-        model.load_state_dict(checkpoint["state_dict"])
+    # Load best model for evaluation
+    best_checkpoint_path = os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt")
+    if os.path.exists(best_checkpoint_path):
+        best_checkpoint = torch.load(best_checkpoint_path, map_location=device)
+        model.load_state_dict(best_checkpoint["state_dict"])
 
     test_loader = DataLoader(test_dataset, batch_size=128)
     model.eval()
     all_true, all_pred, all_lengths = [], [], []
-    missingEdges = 0
     with torch.no_grad():
         for xb, yb in test_loader:
             xb, yb = xb.to(device), yb.to(device)
@@ -209,30 +228,9 @@ def TrainLSTMModel(ModelName):
             all_true.append(yb.cpu())
             all_pred.append(out_seconds.cpu())
             # Compute route lengths (number of non-padding steps per sequence)
-            token_mask = (xb.abs().sum(dim=-1) > 0).cpu()   # True where step is not padding
-            lengths = token_mask.sum(dim=-1).numpy()       # count non-padding steps
+            token_mask = (xb.abs().sum(dim=-1) > 0).cpu()
+            lengths = token_mask.sum(dim=-1).numpy()
             all_lengths.extend(lengths)
-#            batch_lengths_cm = []
-#            all_lengths_cm = []
-#
-#            # Use full precision from your database
-#            for route in xb.cpu().numpy():  # shape: [seq_len, num_features]
-#                route_length_cm = 0
-#                # mask: True where step is not padding
-#                non_padding_mask = (np.abs(route).sum(axis=-1) > 0)
-#
-#                for edge_vector, keep in zip(route, non_padding_mask):
-#                    if not keep:
-#                        continue  # skip padding
-#
-#                    edge_tuple = tuple(edge_vector)  # full 17-decimal precision
-#                    length = vector_to_length.get(edge_tuple)
-#                    if length is not None:
-#                        route_length_cm += length
-#                    # else: silently skip missing edges
-#
-#                batch_lengths_cm.append(route_length_cm)
-#            all_lengths_cm.extend(batch_lengths_cm)
 
         all_true = torch.cat(all_true).numpy()
         all_pred = torch.cat(all_pred).numpy()
@@ -247,16 +245,16 @@ def TrainLSTMModel(ModelName):
     for i in range(num_bins):
         in_bin = (all_lengths >= bins[i]) & (all_lengths < bins[i+1])
         if np.sum(in_bin) == 0:
-            bin_mae.append(np.nan)  # or 0 if you prefer
+            bin_mae.append(np.nan)
         else:
             mae_bin = np.mean(np.abs(all_pred[in_bin] - all_true[in_bin]))
             bin_mae.append(mae_bin)
 
     bin_centers = (bins[:-1] + bins[1:]) / 2
 
-# -------------------------
-# 1️⃣ Plot: MAE per route length
-# -------------------------
+    # -------------------------
+    # 1️⃣ Plot: MAE per route length
+    # -------------------------
     plotInfoMAEPerLength = {
         "type": "bar",
         "x": bin_centers,
@@ -267,44 +265,19 @@ def TrainLSTMModel(ModelName):
         "title": "MAE per Route Length Bucket"
     }
 
-# -------------------------
-# 2️⃣ Plot: Route length histogram
-# -------------------------
+    # -------------------------
+    # 2️⃣ Plot: Route length histogram
+    # -------------------------
     plotInfoRouteLengthHist = {
-        "type": "bar",  # Use "bar" so it looks like MAE plot
-        "x": (bins[:-1] + bins[1:]) / 2,  # bin centers
-        "y": np.histogram(all_lengths, bins=bins)[0],  # counts per bin
+        "type": "bar",
+        "x": (bins[:-1] + bins[1:]) / 2,
+        "y": np.histogram(all_lengths, bins=bins)[0],
         "width": (bins[1] - bins[0]) * 0.9,
         "xlabel": "Route Length (number of steps)",
         "ylabel": "Number of Routes",
         "title": "Route Length Distribution (10 Equal Bins)",
-        "bin_lines": bins  # custom key for dashed lines
+        "bin_lines": bins
     }
-
-#    num_bins_cm = 10  # for example
-#   bins_cm = np.linspace(all_lengths_cm.min(), all_lengths_cm.max(), num_bins_cm + 1)
-#    bin_mae_cm = []
-
-#    for i in range(num_bins_cm):
-#        in_bin = (all_lengths_cm >= bins_cm[i]) & (all_lengths_cm < bins_cm[i+1])
-#        if np.sum(in_bin) == 0:
-#            bin_mae_cm.append(np.nan)  # or 0 if you prefer
-#        else:
-#            mae_bin = np.mean(np.abs(all_pred[in_bin] - all_true[in_bin]))
-#            bin_mae_cm.append(mae_bin)
-
-#    bin_centers_cm = (bins_cm[:-1] + bins_cm[1:]) / 2
-
-#    plotInfoMAEPerLengthCM = {
-#        "type": "bar",
-#        "x": bin_centers_cm,
-#        "y": bin_mae_cm,
-#        "width": (bins_cm[1] - bins_cm[0]) * 0.9,
-#        "xlabel": "Route Length (cm)",
-#        "ylabel": "MAE (seconds)",
-#        "title": "MAE per Route Length (CM) Bucket",
-#        "bin_lines": bins_cm
-#    }
 
     GenerateFigure(
         plot_infos=[plotInfoTrainingGraph, plotInfoMAEPerLength, plotInfoRouteLengthHist, plotInfoGapGraph],
@@ -323,7 +296,6 @@ def TrainLSTMModel(ModelName):
         elif isinstance(layer, nn.Dropout):
             feedforward_layers.append(f"Dropout({layer.p})")
     feedforward_layers_str = " → ".join(feedforward_layers)
-    dropout_value = [layer.p for layer in model.fc_layers if isinstance(layer, nn.Dropout)][0]
 
     readme_path = output_dir / f"{ModelName}Model" / "README.md"
 
@@ -334,7 +306,7 @@ def TrainLSTMModel(ModelName):
 
 ---
 
-## 1️⃣ Dataset Overview
+## Dataset Overview
 | Property | Value |
 |----------|-------|
 | **Number of Samples (Train/Val/Test)** | {train_size} / {val_size} / {test_size} |
@@ -344,7 +316,7 @@ def TrainLSTMModel(ModelName):
 
 ---
 
-## 2️⃣ Model Architecture
+## Model Architecture
 | Component | Configuration |
 |-----------|---------------|
 | **Model Type** | {type(model).__name__} |
@@ -356,7 +328,7 @@ def TrainLSTMModel(ModelName):
 
 ---
 
-## 3️⃣ Training Configuration
+## Training Configuration
 | Property | Value |
 |----------|-------|
 | **Total Epochs** | {epoch + 1} |
@@ -368,14 +340,14 @@ def TrainLSTMModel(ModelName):
 
 ---
 
-## 4️⃣ Performance Metrics
+## Performance Metrics
 | Metric | Train | Validation | Test |
 |--------|-------|------------|------|
 | **MAE (Mean Absolute Error)** | {denormalize_targets(torch.tensor(train_losses[-1])):.2f} s | {denormalize_targets(torch.tensor(val_losses[-1])):.2f} s | {test_mae:.2f} s |
 
 ---
 
-## 5️⃣ Training Dynamics
+## Training Dynamics
 - **Loss Progression:** see plot below (train vs. validation loss)
 
 ![Training Plot]({ModelName}_TrainingData.png)
