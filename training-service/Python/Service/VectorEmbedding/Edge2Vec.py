@@ -3,14 +3,15 @@ import sys
 import networkx as nx
 from node2vec import Node2Vec
 from pathlib import Path
+import sqlite3
 
 # === Function to train Node2Vec model ===
 def modelTraining(GraphForEdges):
     node2vec = Node2Vec(    # Initialize Node2Vec model
         GraphForEdges,      # The graph
-        dimensions=64,       # Embedding dimensions
-        walk_length=15,     # Length of each random walk
-        num_walks=10,       # Number of walks per node
+        dimensions=32,      # Embedding dimensions
+        walk_length=150,    # Length of each random walk
+        num_walks=100,      # Number of walks per node
         p=1,                # Return hyperparameter
         q=1,                # Input hyperparameter
         workers=4           # Number of parallel workers
@@ -41,37 +42,72 @@ def createGraph(Graph):
 
 def VectorEmbedding():
     try:
-        # Initialize embeddings dictionary
-        embeddingsDict = {}    
-
         # === File Paths ===
-        OutputFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
+        db_path = Path(__file__).parent.parent / "Data" / "data.db"
         InputFile = Path(__file__).parent.parent / "Data" / "RoadNetwork.json"
-        if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+        
+        if not InputFile.is_file():
             raise FileNotFoundError(f'"{InputFile}" does not exist. (Missing Dataset)')
     
         with open(InputFile, "r") as f:
             Graph = json.load(f)
 
-        if not Graph: #Check if the data is empty, if it is raise an error.
+        if not Graph:
             raise ValueError('"RoadNetwork.json" is empty or not loaded. (Empty Dataset)')
 
-        GraphEdge = createGraph(Graph)               # Create graph of edges
-        if not GraphEdge: #Check if the data is empty, if it is raise an error.
+        GraphEdge = createGraph(Graph)
+        if not GraphEdge:
             raise ValueError('Graph not created correctly. (Empty Edge Graph)')
 
-        TrainedModel = modelTraining(GraphEdge) # Train Node2Vec model
-        if not TrainedModel: #Check if the data is empty, if it is raise an error.
+        TrainedModel = modelTraining(GraphEdge)
+        if not TrainedModel:
             raise ValueError('Model training failed. (Empty Trained Model)')
 
-        for edge in GraphEdge.nodes():
-            embeddingsDict[edge] = TrainedModel.wv[edge].tolist()
-
-        with open(OutputFile, "w") as f:
-            json.dump(embeddingsDict, f, indent=2)
-
-        if not OutputFile.is_file(): #Check if the file can be found, if not raise an error.
-            raise FileNotFoundError(f'"{OutputFile}" does not exist. (Missing Dataset)')
+        # === Write embeddings to database ===
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        
+        try:
+            # Create embeddings table if it doesn't exist
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS embeddings (
+                edge_id TEXT PRIMARY KEY,
+                vector TEXT NOT NULL
+            );
+            """)
+            
+            print("Clearing existing embeddings...")
+            cur.execute("DELETE FROM embeddings")
+            
+            print("Inserting embeddings...")
+            insert_count = 0
+            for edge in GraphEdge.nodes():
+                vector = TrainedModel.wv[edge].tolist()
+                vector_json = json.dumps(vector)
+                cur.execute("""
+                    INSERT INTO embeddings (edge_id, vector)
+                    VALUES (?, ?)
+                """, (edge, vector_json))
+                insert_count += 1
+            
+            # Create index for performance
+            print("Creating index...")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_edge_id ON embeddings(edge_id)")
+            
+            conn.commit()
+            
+            print(f"✅ Embeddings saved to database → {db_path}")
+            print(f"   - Embeddings inserted: {insert_count} vectors")
+            
+        except Exception as e:
+            conn.rollback()
+            print(f"❌ Database error (rolled back): {e}", file=sys.stderr)
+            raise
+            
+        finally:
+            cur.close()
+            conn.close()
+            
     except Exception as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)

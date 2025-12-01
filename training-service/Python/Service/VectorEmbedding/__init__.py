@@ -1,2 +1,0 @@
-# VectorEmbedding module
-

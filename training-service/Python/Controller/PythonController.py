@@ -3,30 +3,56 @@ from fastapi import FastAPI, Body, Query, HTTPException
 from typing import List, Optional
 from pathlib import Path
 import sys
+import json
+import logging
+from contextlib import asynccontextmanager
+
+# Setup logging for the python API
+logger = logging.getLogger("Python Controller")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setFormatter(logging.Formatter(
+        "\033[1m%(name)s\033[0m - "
+        "\033[33m%(levelname)s\033[0m - "
+        "%(message)s"
+    ))
+    logger.addHandler(ch)
 
 # Add Helpers folder to sys.path
 helpers_path = Path(__file__).parent.parent / "Service"
 sys.path.append(str(helpers_path))
 
-from TrainingModels.predictTime import predict_total_time  # your helper function
-from DatasetCreation.dataCreation import GenerateRoutes  # your helper function
-from DatasetCreation.timeCreation import EdgeTraversalTime  # your helper function
-from DatasetCreation.getEdgeToVectors import GetEdgeToVectors  # your helper function
-from VectorEmbedding.Edge2Vec import VectorEmbedding  # your helper function
-from TrainingModels.LSTMTraining import TrainLSTMModel  # your helper function
-from DatasetCreation.embeddings_cache import get_embeddings  # embeddings cache
+from TrainingModels.predictTime import predict_total_time
+from DatasetCreation.dataCreation import GenerateRoutes
+from DatasetCreation.timeCreation import EdgeTraversalTime
+from DatasetCreation.getEdgeToVectors import GetEdgeToVectors
+from VectorEmbedding.Edge2Vec import VectorEmbedding
+from TrainingModels.LSTMTraining import TrainLSTMModel
 
-app = FastAPI(title="TTE Python API Controller")
 
-@app.on_event("startup")
-async def startup_event():
-    """Pre-load embeddings cache at startup to avoid first-request delay"""
-    try:
-        get_embeddings()
-        print("Embeddings cache loaded successfully", file=sys.stderr, flush=True)
-    except Exception as e:
-        print(f"Warning: Failed to load embeddings cache at startup: {e}", file=sys.stderr, flush=True)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application lifespan context manager for future startup/shutdown tasks.
+    """
+    logger.info("🔵 Starting Python API...")
+    logger.info("✅ Database connections will be created per-request")
+    
+    yield
+    
+    logger.info("🔵 Shutting down API...")
 
+
+# -----------------------------
+# FastAPI App
+# -----------------------------
+app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
+
+
+# -----------------------------
+#     Endpoints
+# -----------------------------
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
     try:
@@ -38,9 +64,9 @@ def PredictTime(edges: List[List[float]], ModelName: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
+
 @app.get("/Python/generate-routes/{NumberOfSequences}/{MinLengthOfSequence}/{MaxLengthOfSequence}")
 def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOfSequence: int):
-    # Validate input
     if NumberOfSequences <= 0:
         raise HTTPException(status_code=400, detail="number_of_sequences must be > 0")
     if MinLengthOfSequence <= 0 or MaxLengthOfSequence <= 0:
@@ -54,8 +80,6 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
             minLengthOfSequence=MinLengthOfSequence,
             maxLengthOfSequence=MaxLengthOfSequence
         )
-
-        print(routes, file=sys.stderr, flush=True)
         return {"routes": routes}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -82,6 +106,7 @@ def calculateRouteTime(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
+
 @app.post("/Python/vectors")
 def get_edge_to_vectors(
     edges: List[int] = Body(..., example=[1, 2, 3]),
@@ -100,6 +125,7 @@ def get_edge_to_vectors(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
+
 @app.post("/Python/vector-embedding")
 def vectorEmbedding():
     try:
@@ -112,6 +138,7 @@ def vectorEmbedding():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
+
 @app.post("/Python/train-lstm/{ModelName}")
 def trainLSTMModel(ModelName: str):
     try:
@@ -123,3 +150,13 @@ def trainLSTMModel(ModelName: str):
         raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+    TrainLSTMModel(ModelName)
+    return {"status": "LSTM model trained successfully."}
+
+
+@app.post("/Python/TrainingFile")
+async def upload(file: UploadFile = File(...)):
+    file_path = Path(__file__).parent.parent / "Service" / "Data" / "TrainingSet.json"
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+    return {"status": "ok", "file_saved": str(file_path)}
