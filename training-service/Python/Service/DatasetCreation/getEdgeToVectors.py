@@ -10,10 +10,19 @@ def get_db_connection():
         raise FileNotFoundError('"data.db" does not exist. (Missing Dataset)')
     
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
+        
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA integrity_check;")
+        result = cursor.fetchone()
+        cursor.close()
+        if result[0] != "ok":
+            conn.close()
+            raise RuntimeError("Database is corrupted!")
+        
         return conn
     except sqlite3.Error as e:
-        raise RuntimeError(f"Database error: {str(e)}")
+        raise RuntimeError(f"Database error: {e!r}") from e
 
 
 def get_vector_from_db(edge_id: str, cursor):
@@ -34,7 +43,7 @@ def GetEdgeToVectors(edges):
     Uses individual queries to minimize memory usage.
     """
     try:
-        if not edges:
+        if not edges: #Check if the data is empty, if it is raise an error.
             raise ValueError('No route data provided. (Empty Route)')
 
         vectors = []

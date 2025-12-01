@@ -32,7 +32,7 @@ public class GetRouteConsumer : IConsumer<Events.RouteMadeEvent>
             Origin = evt.Origin,
             Destination = evt.Destination,
             DistanceKm = evt.DistanceKm,
-            TravelTimeMinutes = evt.TravelTimeMinutes,
+            TravelTimeMinutes = evt.TravelTimeSeconds / 60.0,  // Convert seconds to minutes
             Path = evt.Path.Select(p => new Entities.RouteCoordinate
             {
                 Latitude = p.Latitude,

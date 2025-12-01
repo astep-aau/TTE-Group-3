@@ -30,7 +30,7 @@ def get_db_connection():
 
         return conn
     except sqlite3.Error as e:
-        raise RuntimeError(f"Database error: {str(e)}")
+        raise RuntimeError(f"Database error: {e!r}") from e
 
 
 def get_all_embeddings(cursor):
@@ -57,7 +57,7 @@ def get_edge_time(route, db_connection):
         cursor.execute(f"""
             SELECT DISTINCT traversal_id
             FROM traversals
-            WHERE node_id IN ({placeholders})
+            WHERE edge_id IN ({placeholders})
         """, route)
         for row in cursor.fetchall():
             bucketsAvailable.add(int(row[0]))
@@ -78,7 +78,7 @@ def get_edge_time(route, db_connection):
             cursor.execute("""
                 SELECT traversal_id, time_s
                 FROM traversals
-                WHERE node_id = ?
+                WHERE edge_id = ?
             """, (edgeId,))
             rows = cursor.fetchall()
             logger.debug(f"Edge {edgeId}: Found {len(rows)} traversal rows")
@@ -113,9 +113,9 @@ def get_edge_time(route, db_connection):
 
                             placeholders_neighbors = ",".join("?" * len(nearest_edge_ids))
                             cursor.execute(f"""
-                                SELECT DISTINCT node_id
+                                SELECT DISTINCT edge_id
                                 FROM traversals
-                                WHERE node_id IN ({placeholders_neighbors})
+                                WHERE edge_id IN ({placeholders_neighbors})
                             """, nearest_edge_ids)
                             available_neighbors = {row[0] for row in cursor.fetchall()}
                             logger.debug(f"Edge {edgeId}: {len(available_neighbors)}/{top_k} neighbors have data")
@@ -130,7 +130,7 @@ def get_edge_time(route, db_connection):
                                 cursor.execute("""
                                     SELECT traversal_id, time_s
                                     FROM traversals
-                                    WHERE node_id = ?
+                                    WHERE edge_id = ?
                                 """, (other_edge_id,))
                                 neighbor_rows = cursor.fetchall()
                                 if neighbor_rows:
@@ -141,9 +141,8 @@ def get_edge_time(route, db_connection):
                                     dist_val = float(dists[order[i]])
                                     logger.info(f"Edge {edgeId}: Using neighbor {other_edge_id} (dist={dist_val:.4f}, bucket={closest_bucket}, time={found_time:.2f}s)")
                                     break
-                except Exception as e:
-                    logger.error(f"Edge {edgeId}: Embedding fallback error: {e}")
-                    print(f"Embedding fallback error for edge {edge}: {e}", file=sys.stderr)
+                except (sqlite3.Error, json.JSONDecodeError, np.linalg.LinAlgError) as e:
+                    logger.exception(f"Edge {edgeId}: Embedding fallback error")
 
                 final_time = found_time if found_time is not None else 5.0
                 times.append(final_time)
@@ -183,4 +182,4 @@ def EdgeTraversalTime(route):
             return result
     except Exception as e:
         logger.error(f"Error in EdgeTraversalTime: {e}", exc_info=True)
-        raise RuntimeError(f"Error calculating edge times: {e}")
+        raise RuntimeError(f"Error calculating edge times: {e}") from e

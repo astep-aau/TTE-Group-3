@@ -2,10 +2,10 @@ using TrainingService.Domain;
 using TrainingService.Controllers;
 
 namespace TrainingService.Infrastructure;
-public class TrainingQueue
+public class TrainingQueue : ITrainingQueue
 {
     private readonly Queue<TrainingRequest> _jobs = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     public void Enqueue(TrainingRequest job)
     {
