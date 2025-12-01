@@ -49,21 +49,6 @@ def GenerateFigure(plot_infos, output_path):
 
 def TrainLSTMModel(ModelName):
     # Connect to database
-    db_path = Path(__file__).parent.parent / "Data" / "data.db"
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Fetch all vectors and their lengths
-    cursor.execute("SELECT VECTOR, LENGTH_CM FROM embeddings")
-    rows = cursor.fetchall()
-
-    # VECTOR might be stored as a string or binary; convert to tuple/list if needed
-    vector_to_length = {}
-    for vec, length in rows:
-        # Example if VECTOR stored as string '[1.0, 2.0, ...]'
-        vec_tuple = tuple(map(float, vec.strip("[]").split(",")))
-        vector_to_length[vec_tuple] = length    
-    conn.close()
 
     json_path = Path(__file__).parent.parent / "Data" / "TrainingSet.json"
     with open(json_path, "r") as f:
