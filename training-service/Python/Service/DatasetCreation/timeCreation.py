@@ -40,10 +40,24 @@ def get_all_embeddings(cursor):
     return {row[0]: json.loads(row[1]) for row in rows}
 
 
-def get_edge_time(route, db_connection):
+def get_edge_time(route, db_connection, timeBucket=None):
+    """
+    Compute the traversal times for each edge in the route based on traversal data from DB.
+    Args:
+        route: List of edge IDs in the route.
+        db_connection: SQLite database connection.
+        timeBucket: Optional time bucket (0-287) for time-specific traversal times.
+            If None, a random available bucket is selected.
+    Returns:
+        List of traversal times for each edge.
+    """
     logger.info(f"=== Starting get_edge_time ===")
     logger.info(f"Route received: {route}")
     logger.info(f"Route length: {len(route)}")
+    
+    # Input validation for timeBucket
+    if timeBucket is not None and (timeBucket < 0 or timeBucket > 287):
+        raise ValueError(f'timeBucket must be between 0 and 287, got {timeBucket}')
 
     times = []
     bucketsAvailable = set()
@@ -52,6 +66,7 @@ def get_edge_time(route, db_connection):
     logger.debug("Database cursor created")
 
     try:
+        # 1. Find available buckets for this route
         placeholders = ",".join("?" * len(route))
         logger.debug(f"Querying database for buckets")
         cursor.execute(f"""
@@ -68,9 +83,15 @@ def get_edge_time(route, db_connection):
             logger.warning("No buckets available - returning empty list")
             return []
 
-        chosen_bucket = random.choice(sorted(bucketsAvailable))
-        logger.info(f"Chosen bucket: {chosen_bucket}")
+        # 2. Choose bucket
+        if timeBucket is not None:
+            chosen_bucket = timeBucket
+            logger.info(f"Using provided timeBucket: {chosen_bucket}")
+        else:
+            chosen_bucket = random.choice(sorted(bucketsAvailable))
+            logger.info(f"Chosen random bucket: {chosen_bucket}")
 
+        # 3. Calculate time for each edge
         for edgeId in route:
             edge = str(edgeId)
             logger.info(f"\n--- Processing edge: {edgeId} ---")
@@ -168,7 +189,7 @@ def get_edge_time(route, db_connection):
     return times
 
 
-def EdgeTraversalTime(route):
+def EdgeTraversalTime(route, timeBucket=None):
     if not route:
         logger.error("Empty route provided")
         raise ValueError('No route data provided. (Empty Route)')
@@ -177,7 +198,7 @@ def EdgeTraversalTime(route):
         logger.debug("Opening database connection...")
         with get_db_connection() as db_conn:
             logger.debug("Database connection established")
-            result = get_edge_time(route, db_conn)
+            result = get_edge_time(route, db_conn, timeBucket)
             logger.info(f"EdgeTraversalTime returning {len(result)} times")
             return result
     except Exception as e:

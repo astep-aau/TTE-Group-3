@@ -8,10 +8,18 @@ def predict_total_time(route, ModelName):
     model_path = Path(__file__).parent.parent / "Data" / "TrainedModels" / f"{ModelName}.pt"
     checkpoint = torch.load(model_path, map_location="cpu")
 
-    # Infer input_size from the route data (each edge is a vector)
-    input_size = len(route[0]) if route else 64
-    
-    model = LSTMModel(input_size=input_size)
+    # Dynamically determine input size from the input route
+    # route is [seq_len, num_features]
+    if not route or len(route) == 0 or len(route[0]) == 0:
+        raise ValueError('Route must contain at least one edge with features')
+    input_dim = len(route[0])
+
+    # Check for input_size in checkpoint and validate
+    checkpoint_input_size = checkpoint.get("input_size")
+
+    if checkpoint_input_size is not None and checkpoint_input_size != input_dim:
+        raise ValueError(f"Input size mismatch: checkpoint expects {checkpoint_input_size}, but got {input_dim} from route")
+    model = LSTMModel(input_size=input_dim)
     model.load_state_dict(checkpoint["state_dict"])
 
     normalization = checkpoint["normalization"]

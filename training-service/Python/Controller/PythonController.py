@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from typing import List
+# PythonController.py
+from fastapi import FastAPI, Body, Query, HTTPException
+from typing import List, Optional
 from pathlib import Path
 import sys
 import json
@@ -54,7 +55,14 @@ app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
 # -----------------------------
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
-    return {"predicted_time": predict_total_time(edges, ModelName)}
+    try:
+        return {"predicted_time": predict_total_time(edges, ModelName)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @app.get("/Python/generate-routes/{NumberOfSequences}/{MinLengthOfSequence}/{MaxLengthOfSequence}")
@@ -73,28 +81,75 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
             maxLengthOfSequence=MaxLengthOfSequence
         )
         return {"routes": routes}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+    
+# Endpoint for a single route
 @app.post("/Python/calculate-route-time")
-def calculateRouteTime(route: List[int]):
-    return EdgeTraversalTime(route)
+def calculateRouteTime(
+    route: List[int],
+    timeBucket: Optional[int] = Query(
+        None, ge=0, le=287,
+        description="Optional time bucket (0..287)"
+    )
+):
+    try:
+        return EdgeTraversalTime(route, timeBucket)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @app.post("/Python/vectors")
-def getEdgeToVectors(edges: List[int]):
-    return GetEdgeToVectors(edges)
+def get_edge_to_vectors(
+    edges: List[int] = Body(..., example=[1, 2, 3]),
+    timeBucket: Optional[int] = Query(
+        None, ge=0, le=287,
+        description="Optional time bucket (0..287)"
+    )
+):
+    # timeBucket is already validated by Query(ge=0, le=287)
+    try:
+        return GetEdgeToVectors(edges, timeBucket)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @app.post("/Python/vector-embedding")
 def vectorEmbedding():
-    VectorEmbedding()
-    return {"status": "Edge embeddings generated successfully."}
+    try:
+        VectorEmbedding()
+        return {"status": "Edge embeddings generated successfully."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @app.post("/Python/train-lstm/{ModelName}")
 def trainLSTMModel(ModelName: str):
+    try:
+        TrainLSTMModel(ModelName)
+        return {"status": "LSTM model trained successfully."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=f"Server configuration error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
     TrainLSTMModel(ModelName)
     return {"status": "LSTM model trained successfully."}
 
