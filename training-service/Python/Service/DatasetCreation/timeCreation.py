@@ -1,185 +1,88 @@
-import json
 import random
-from pathlib import Path
 import numpy as np
-import sqlite3
-import sys
 import logging
+import sys
+from pathlib import Path
 
-# Configure logging
+sys.path.append(str(Path(__file__).parent.parent / "Data"))
+from LookupTableData.lookupManager import get_lookup_manager
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def get_db_connection():
-    """Open read-only connection to data.db"""
-    db_path = Path(__file__).parent.parent / "Data" / "data.db"
-    if not db_path.is_file():
-        raise FileNotFoundError('"data.db" does not exist. (Missing Dataset)')
-
-    try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
-
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check;")
-        result = cursor.fetchone()
-        cursor.close()
-        if result[0] != "ok":
-            conn.close()
-            raise RuntimeError("Database is corrupted!")
-
-        return conn
-    except sqlite3.Error as e:
-        raise RuntimeError(f"Database error: {e!r}") from e
-
-
-def get_all_embeddings(cursor):
-    """Fetch all embeddings from database (for fallback neighbor search)"""
-    cursor.execute("SELECT edge_id, vector FROM embeddings")
-    rows = cursor.fetchall()
-    return {row[0]: json.loads(row[1]) for row in rows}
-
-
-def get_edge_time(route, db_connection):
+def get_edge_time(route, manager):
     logger.info(f"=== Starting get_edge_time ===")
-    logger.info(f"Route received: {route}")
-    logger.info(f"Route length: {len(route)}")
+    logger.info(f"Route: {route}, Length: {len(route)}")
 
     times = []
-    bucketsAvailable = set()
+    bucketsAvailable = manager.get_available_buckets(route)
 
-    cursor = db_connection.cursor()
-    logger.debug("Database cursor created")
+    logger.info(f"Available buckets: {sorted(bucketsAvailable)}")
 
-    try:
-        placeholders = ",".join("?" * len(route))
-        logger.debug(f"Querying database for buckets")
-        cursor.execute(f"""
-            SELECT DISTINCT traversal_id
-            FROM traversals
-            WHERE edge_id IN ({placeholders})
-        """, route)
-        for row in cursor.fetchall():
-            bucketsAvailable.add(int(row[0]))
+    if not bucketsAvailable:
+        logger.warning("No buckets available")
+        return []
 
-        logger.info(f"Available buckets found: {sorted(bucketsAvailable)}")
+    chosen_bucket = random.choice(sorted(bucketsAvailable))
+    logger.info(f"Chosen bucket: {chosen_bucket}")
 
-        if not bucketsAvailable:
-            logger.warning("No buckets available - returning empty list")
-            return []
+    for edgeId in route:
+        logger.info(f"\n--- Processing edge: {edgeId} ---")
 
-        chosen_bucket = random.choice(sorted(bucketsAvailable))
-        logger.info(f"Chosen bucket: {chosen_bucket}")
+        traversals = manager.get_traversals(edgeId)
 
-        for edgeId in route:
-            edge = str(edgeId)
-            logger.info(f"\n--- Processing edge: {edgeId} ---")
+        if not traversals:
+            logger.warning(f"Edge {edgeId}: No traversals - using fallback")
 
-            cursor.execute("""
-                SELECT traversal_id, time_s
-                FROM traversals
-                WHERE edge_id = ?
-            """, (edgeId,))
-            rows = cursor.fetchall()
-            logger.debug(f"Edge {edgeId}: Found {len(rows)} traversal rows")
+            found_time = None
+            try:
+                target_vec = manager.get_vector(edgeId)
 
-            if not rows:
-                logger.warning(f"Edge {edgeId}: No traversals - using fallback")
+                if target_vec is not None:
+                    all_vecs = manager.get_all_vectors()
+                    
+                    # Compute distances (vectorized)
+                    diffs = all_vecs - target_vec
+                    dists = np.linalg.norm(diffs, axis=1)
+                    order = np.argsort(dists)
 
-                found_time = None
-                try:
-                    # Get target vector from embeddings table
-                    cursor.execute("SELECT vector FROM embeddings WHERE edge_id = ?", (edge,))
-                    target_row = cursor.fetchone()
+                    # Try top 20 neighbors (skip self at index 0)
+                    for i in range(1, min(21, len(order))):
+                        neighbor_edge_id = int(order[i])  # Index IS edge_id
 
-                    if target_row:
-                        target_vec = np.array(json.loads(target_row[0]), dtype=np.float32)
+                        neighbor_traversals = manager.get_traversals(neighbor_edge_id)
+                        if neighbor_traversals:
+                            bucket_map = {t[0]: t[1] for t in neighbor_traversals}
+                            closest_bucket = min(bucket_map.keys(), key=lambda k: abs(k - chosen_bucket))
+                            found_time = bucket_map[closest_bucket]
+                            logger.info(f"Edge {edgeId}: Using neighbor {neighbor_edge_id} (dist={dists[neighbor_edge_id]:.4f}, time={found_time:.2f}s)")
+                            break
 
-                        # Load all other embeddings for comparison
-                        all_embeddings = get_all_embeddings(cursor)
-                        other_items = [(k, v) for k, v in all_embeddings.items() if k != edge]
+            except Exception as e:
+                logger.exception(f"Edge {edgeId}: Fallback error")
 
-                        if other_items:
-                            other_keys, other_vecs = zip(*other_items)
-                            vecs = np.asarray(other_vecs, dtype=np.float32)
-                            diffs = vecs - target_vec
-                            dists = np.linalg.norm(diffs, axis=1)
-                            order = np.argsort(dists)
-                            logger.debug(f"Edge {edgeId}: Distances min={dists.min():.4f}, max={dists.max():.4f}")
+            final_time = found_time if found_time is not None else 5.0
+            times.append(final_time)
+            continue
 
-                            top_k = min(20, len(order))
-                            nearest_edge_ids = [int(other_keys[int(order[i])]) for i in range(top_k)]
-                            logger.info(f"Edge {edgeId}: Top {top_k} neighbors: {nearest_edge_ids[:5]}...")
-
-                            placeholders_neighbors = ",".join("?" * len(nearest_edge_ids))
-                            cursor.execute(f"""
-                                SELECT DISTINCT edge_id
-                                FROM traversals
-                                WHERE edge_id IN ({placeholders_neighbors})
-                            """, nearest_edge_ids)
-                            available_neighbors = {row[0] for row in cursor.fetchall()}
-                            logger.debug(f"Edge {edgeId}: {len(available_neighbors)}/{top_k} neighbors have data")
-
-                            for i in range(top_k):
-                                other_edge_id = nearest_edge_ids[i]
-                                if other_edge_id not in available_neighbors:
-                                    continue
-
-                                logger.debug(f"Edge {edgeId}: Checking neighbor {other_edge_id}")
-
-                                cursor.execute("""
-                                    SELECT traversal_id, time_s
-                                    FROM traversals
-                                    WHERE edge_id = ?
-                                """, (other_edge_id,))
-                                neighbor_rows = cursor.fetchall()
-                                if neighbor_rows:
-                                    bucket_map = {int(r[0]): float(r[1]) for r in neighbor_rows}
-                                    bucket_keys = sorted(bucket_map.keys())
-                                    closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket))
-                                    found_time = bucket_map[closest_bucket]
-                                    dist_val = float(dists[order[i]])
-                                    logger.info(f"Edge {edgeId}: Using neighbor {other_edge_id} (dist={dist_val:.4f}, bucket={closest_bucket}, time={found_time:.2f}s)")
-                                    break
-                except (sqlite3.Error, json.JSONDecodeError, np.linalg.LinAlgError) as e:
-                    logger.exception(f"Edge {edgeId}: Embedding fallback error")
-
-                final_time = found_time if found_time is not None else 5.0
-                times.append(final_time)
-                if found_time is not None:
-                    logger.info(f"Edge {edgeId}: Added fallback time {final_time:.2f}s")
-                else:
-                    logger.warning(f"Edge {edgeId}: Using final fallback (5.0s)")
-                continue
-
-            # Normal path with traversal data
-            bucket_map = {int(row[0]): float(row[1]) for row in rows}
-            bucket_keys = sorted(bucket_map.keys())
-            logger.debug(f"Edge {edgeId}: Available buckets: {bucket_keys}")
-            closest_bucket = min(bucket_keys, key=lambda k: abs(k - chosen_bucket))
-            edge_time = bucket_map[closest_bucket]
-            times.append(edge_time)
-            logger.info(f"Edge {edgeId}: Using bucket {closest_bucket} with time {edge_time:.2f}s")
-
-    finally:
-        cursor.close()
-        logger.debug("Database cursor closed")
+        # Normal path
+        bucket_map = {t[0]: t[1] for t in traversals}
+        closest_bucket = min(bucket_map.keys(), key=lambda k: abs(k - chosen_bucket))
+        edge_time = bucket_map[closest_bucket]
+        times.append(edge_time)
+        logger.info(f"Edge {edgeId}: Using bucket {closest_bucket}, time={edge_time:.2f}s")
 
     return times
 
 
 def EdgeTraversalTime(route):
     if not route:
-        logger.error("Empty route provided")
         raise ValueError('No route data provided. (Empty Route)')
 
     try:
-        logger.debug("Opening database connection...")
-        with get_db_connection() as db_conn:
-            logger.debug("Database connection established")
-            result = get_edge_time(route, db_conn)
-            logger.info(f"EdgeTraversalTime returning {len(result)} times")
-            return result
+        manager = get_lookup_manager()
+        return get_edge_time(route, manager)
     except Exception as e:
-        logger.error(f"Error in EdgeTraversalTime: {e}", exc_info=True)
+        logger.error(f"Error: {e}", exc_info=True)
         raise RuntimeError(f"Error calculating edge times: {e}") from e
