@@ -1,8 +1,7 @@
 import json
 import sqlite3
-import math
-import sys
 from pathlib import Path
+
 
 def get_db_connection():
     """Open a read-only connection to data.db"""
@@ -32,52 +31,30 @@ def get_vector_from_db(edge_id: str, cursor):
     row = cursor.fetchone()
     
     if row is None:
+        # TODO: Consider returning None or a default vector instead of raising
         raise ValueError(f'No vector for edge {edge_id}. (Missing values)')
     
     return json.loads(row[0])
 
 
-def apply_time_encoding(vector, timeBucket):
-    """Appends sinusoidal time encoding to the vector if timeBucket is provided."""
-    if timeBucket is None:
-        return vector
-
-    # Normalize time bucket (0-287) to 0-2pi
-    time_angle = 2 * math.pi * timeBucket / 288.0
-    sin_time = math.sin(time_angle)
-    cos_time = math.cos(time_angle)
-    
-    # Append to vector
-    return vector + [sin_time, cos_time]
-
-
-def GetEdgeToVectors(edges, timeBucket=None):
+def GetEdgeToVectors(edges):
     """
-    Convert edge IDs to their vector embeddings from the database,
-    optionally appending time encoding.
+    Convert edge IDs to their vector embeddings from the database.
+    Uses individual queries to minimize memory usage.
     """
-    # Validate timeBucket
-    if timeBucket is not None and (timeBucket < 0 or timeBucket > 287):
-        raise ValueError(f"timeBucket must be between 0 and 287, got {timeBucket}")
-    
-    if not edges:
-        raise ValueError('No route data provided. (Empty Route)')
-
     try:
+        if not edges: #Check if the data is empty, if it is raise an error.
+            raise ValueError('No route data provided. (Empty Route)')
+
         vectors = []
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
             for edge in edges:
-                # 1. Fetch raw vector from DB
                 edge_str = str(edge)
-                raw_vector = get_vector_from_db(edge_str, cursor)
-                
-                # 2. Apply time encoding
-                final_vector = apply_time_encoding(raw_vector, timeBucket)
-                
-                vectors.append(final_vector)
+                vector = get_vector_from_db(edge_str, cursor)
+                vectors.append(vector)
             
             cursor.close()
 
@@ -87,7 +64,4 @@ def GetEdgeToVectors(edges, timeBucket=None):
         return vectors
         
     except Exception as e:
-        # Preserve specific ValueErrors, wrap others
-        if isinstance(e, ValueError):
-            raise e
         raise RuntimeError(str(e))

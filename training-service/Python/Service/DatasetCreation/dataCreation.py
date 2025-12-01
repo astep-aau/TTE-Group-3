@@ -40,18 +40,22 @@ def random_sequence(graph, lengthOfSequence):
 def GenerateRoutes(numberOfSequences, minLengthOfSequence, maxLengthOfSequence):
     InputFile = Path(__file__).parent.parent / "Data" / "RoadNetwork.json"
     
-    if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
-        raise FileNotFoundError(f'"RoadNetwork.json" does not exist. (Mising Dataset)')
+    try:
+        if not InputFile.is_file(): #Check if the file can be found, if not raise an error.
+            raise FileNotFoundError(f'"RoadNetwork.json" does not exist. (Mising Dataset)')
 
-    #Opens the file and load data into "GraphData".
-    with open(InputFile, "r") as f:
-        GraphData = json.load(f)
+        #Opens the file and load data into "GraphData".
+        with open(InputFile, "r") as f:
+            GraphData = json.load(f)
 
-    Routes = []
-    for _ in range(numberOfSequences):
-        LengthOfSequence = random.randint(minLengthOfSequence, maxLengthOfSequence)
-        sequence = random_sequence(GraphData, LengthOfSequence)
-        if sequence:
-            Routes.append(sequence)
+        Routes = []
+        for _ in range(numberOfSequences):
+            LengthOfSequence = random.randint(minLengthOfSequence, maxLengthOfSequence)
+            sequence = random_sequence(GraphData, LengthOfSequence)
+            if sequence:
+                Routes.append(sequence)
 
-    return Routes
+        return Routes
+
+    except Exception as e:
+        raise RuntimeError(str(e))
