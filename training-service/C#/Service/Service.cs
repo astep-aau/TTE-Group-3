@@ -219,7 +219,7 @@ public class Service
             HttpResponseMessage response = await _client.PostAsync(url, null, cts.Token);
             response.EnsureSuccessStatusCode();
     
-            string responseContent = await response.Content.ReadAsStringAsync();
+            string responseContent = await response.Content.ReadAsStringAsync(cts.Token);
             _logger.LogInformation("[C# Service]: LSTM training completed for model: {ModelName}. Response: {Response}",
                 modelName, responseContent);
         }

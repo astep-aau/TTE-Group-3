@@ -13,7 +13,7 @@ def get_embeddings() -> Dict:
     global _embeddings_cache
     
     if _embeddings_cache is None:
-        EmbeddingFile = Path(__file__).parent.parent / "Data" / "edgeEmbeddings.json"
+        EmbeddingFile = Path(__file__).parent.parent / "Data" / "LookupTableData" / "edgeEmbeddings.json"
         
         if not EmbeddingFile.is_file():
             raise FileNotFoundError(f'"edgeEmbeddings.json" does not exist. (Missing dataset)')

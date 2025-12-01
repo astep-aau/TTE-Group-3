@@ -1,67 +1,31 @@
-import json
-import sqlite3
+import sys
 from pathlib import Path
 
-
-def get_db_connection():
-    """Open a read-only connection to data.db"""
-    db_path = Path(__file__).parent.parent / "Data" / "data.db"
-    if not db_path.is_file():
-        raise FileNotFoundError('"data.db" does not exist. (Missing Dataset)')
-    
-    try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
-        
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check;")
-        result = cursor.fetchone()
-        cursor.close()
-        if result[0] != "ok":
-            conn.close()
-            raise RuntimeError("Database is corrupted!")
-        
-        return conn
-    except sqlite3.Error as e:
-        raise RuntimeError(f"Database error: {e!r}") from e
-
-
-def get_vector_from_db(edge_id: str, cursor):
-    """Fetch a single vector from the database by edge_id"""
-    cursor.execute("SELECT vector FROM embeddings WHERE edge_id = ?", (edge_id,))
-    row = cursor.fetchone()
-    
-    if row is None:
-        # TODO: Consider returning None or a default vector instead of raising
-        raise ValueError(f'No vector for edge {edge_id}. (Missing values)')
-    
-    return json.loads(row[0])
-
+sys.path.append(str(Path(__file__).parent.parent / "Data"))
+from LookupTableData.lookupManager import get_lookup_manager
 
 def GetEdgeToVectors(edges):
-    """
-    Convert edge IDs to their vector embeddings from the database.
-    Uses individual queries to minimize memory usage.
-    """
+    """Convert edge IDs to vectors using memory-mapped lookup tables"""
     try:
-        if not edges: #Check if the data is empty, if it is raise an error.
+        if not edges:
             raise ValueError('No route data provided. (Empty Route)')
 
+        manager = get_lookup_manager()
         vectors = []
-        
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            for edge in edges:
-                edge_str = str(edge)
-                vector = get_vector_from_db(edge_str, cursor)
-                vectors.append(vector)
-            
-            cursor.close()
+
+        for edge in edges:
+            edge_id = int(edge)  # Convert to int (sequential IDs)
+            vector = manager.get_vector(edge_id)
+
+            if vector is None:
+                raise ValueError(f'No vector for edge {edge}. (Missing values)')
+
+            vectors.append(vector.tolist())
 
         if not vectors:
             raise ValueError('No Vectors Converted. (Error in Conversion)')
 
         return vectors
-        
+
     except Exception as e:
         raise RuntimeError(str(e))
