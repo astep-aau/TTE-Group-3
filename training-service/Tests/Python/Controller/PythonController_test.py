@@ -15,7 +15,7 @@ from Python.Controller.PythonController import _initialize_resources
 # ----------------------------
 def test_initialize_resources_valid(tmp_path):
     data = {"edge1": [0.1, 0.2], "edge2": [0.3, 0.4]}
-    file_path = tmp_path / "edgeEmbeddings.json"
+    file_path = tmp_path / "LookupTableData" / "edgeEmbeddings.json"
     file_path.write_text(json.dumps(data))
 
     result = _initialize_resources(file_path)
@@ -25,7 +25,7 @@ def test_initialize_resources_valid(tmp_path):
 # Test missing file
 # ----------------------------
 def test_initialize_resources_missing(tmp_path):
-    missing_file = tmp_path / "missing.json"  # does not exist
+    missing_file = tmp_path / "LookupTableData" / "missing.json"  # does not exist
     with pytest.raises(FileNotFoundError):
         _initialize_resources(missing_file)
 
@@ -33,7 +33,7 @@ def test_initialize_resources_missing(tmp_path):
 # Test invalid JSON
 # ----------------------------
 def test_initialize_resources_invalid_json(tmp_path):
-    invalid_file = tmp_path / "edgeEmbeddings.json"
+    invalid_file = tmp_path / "LookupTableData" / "edgeEmbeddings.json"
     invalid_file.write_text("{invalid_json: true}")  # malformed
 
     with pytest.raises(ValueError):
