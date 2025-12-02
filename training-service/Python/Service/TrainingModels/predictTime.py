@@ -49,8 +49,8 @@ def load_model_from_checkpoint(checkpoint_path):
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
     
-    # Load with weights_only=False to handle the Sequential layers
-    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    # Load checkpoint onto CPU
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
     
     # Extract architecture parameters
     input_size = checkpoint["input_size"]
@@ -82,13 +82,24 @@ def load_model_from_checkpoint(checkpoint_path):
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
     
-    # Extract normalization parameters
-    normalization = checkpoint.get("normalization", {"mean": 0.0, "std": 1.0})
-    
+    # Extract normalization parameters and coerce to python primitives
+    norm = checkpoint.get("normalization", None)
+    if isinstance(norm, dict):
+        mean = float(norm.get("mean", 0.0))
+        std = float(norm.get("std", 1.0))
+        use_norm = bool(norm.get("use_normalization", True))
+    else:
+        # Backwards compatibility: no normalization dict present
+        mean = 0.0
+        std = 1.0
+        use_norm = False
+
+    normalization = {"mean": mean, "std": std, "use_normalization": use_norm}
+
     return model, normalization
 
 
-def predict_total_time(route, ModelName):
+def predict_total_time(route, ModelName, ignore_checkpoint_normalization: bool = False):
     """
     Predicts total time for a given route using a saved checkpoint.
     
@@ -102,17 +113,30 @@ def predict_total_time(route, ModelName):
     checkpoint_path = Path(__file__).parent.parent / "Data" / "TrainedModels" / f"{ModelName}Model" / f"{ModelName}.pt"
     model, normalization = load_model_from_checkpoint(checkpoint_path)
     
-    mean_y = normalization["mean"]
-    std_y = normalization["std"]
+    # Decide which normalization to use. If caller requests to ignore checkpoint
+    # normalization (ignore_checkpoint_normalization=True) we use neutral values
+    # mean=0.0 and std=1.0 so the model output is returned as raw seconds.
+    if ignore_checkpoint_normalization:
+        mean_y = 0.0
+        std_y = 1.0
+    else:
+        mean_y = float(normalization.get("mean", 0.0))
+        std_y = float(normalization.get("std", 1.0))
+    use_norm_flag = bool(normalization.get("use_normalization", True))
+
+    # Informational print so users know which normalization was applied
+    print(f"predict_total_time: using normalization mean={mean_y}, std={std_y}, "
+          f"ignored_flag={ignore_checkpoint_normalization}, checkpoint_use_norm={use_norm_flag}")
     
     with torch.no_grad():
         # Convert route to tensor [1, seq_len, input_size]
         x = torch.tensor(route, dtype=torch.float32).unsqueeze(0)
         
-        # Get normalized prediction
-        out_norm = model(x)
-        
-        # Denormalize to get actual seconds
-        out_seconds = out_norm * std_y + mean_y
-        
-        return out_seconds.item()
+    # Get normalized prediction tensor
+    out_norm = model(x)
+
+    # Denormalize (this will be a no-op when std=1, mean=0)
+    out_seconds = out_norm * std_y + mean_y
+
+    # Return scalar Python float
+    return float(out_seconds.squeeze().item())
