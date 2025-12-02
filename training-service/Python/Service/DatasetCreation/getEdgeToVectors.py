@@ -1,3 +1,4 @@
+import math
 import sys
 from pathlib import Path
 
@@ -20,9 +21,17 @@ def GetEdgeToVectors(edges, time_bucket=0):
             if vector is None:
                 raise ValueError(f'No vector for edge {edge}. (Missing values)')
 
-            # Convert numpy array to list and append time_bucket
+            # Convert numpy array to list
             vector_list = vector.tolist()
-            vector_list.append(float(time_bucket))
+            
+            # Sinusoidal encoding for time_bucket (0-287)
+            # Normalize to 0-2pi range
+            normalized_time = (2 * math.pi * time_bucket) / 288.0
+            
+            # Append sin and cos components
+            vector_list.append(math.sin(normalized_time))
+            vector_list.append(math.cos(normalized_time))
+            
             vectors.append(vector_list)
 
         if not vectors:
