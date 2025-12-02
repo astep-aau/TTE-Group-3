@@ -97,11 +97,12 @@ public class Service
     /// Calculates the total time for a given route by calling the Python backend.
     /// </summary>
     /// <param name="edges">The list of edge IDs representing the route.</param>
+    /// <param name="timeBucket">The time bucket (0-287) for the route.</param>
     /// <returns>The total time required to traverse the route, or 0.0 if calculation fails.</returns>
     /// <remarks>
     /// Returns 0.0 if the edge list is null, empty, or if an error occurs during calculation.
     /// </remarks>
-    private async Task<double> CreateTimeForRouteAsync(List<int>? edges)
+    private async Task<double> CreateTimeForRouteAsync(List<int>? edges, int timeBucket)
     {
         if (edges == null || edges.Count == 0)
         {
@@ -109,11 +110,13 @@ public class Service
             return 0.0;
         }
 
-        _logger.LogDebug("[C# Service]: Calculating time for route with {EdgeCount} edges", edges.Count);
+        _logger.LogDebug("[C# Service]: Calculating time for route with {EdgeCount} edges and time bucket {TimeBucket}", edges.Count, timeBucket);
 
         try
         {
-            var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.CalculateRouteTime}";
+            // Pass time_bucket as query parameter
+            var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.CalculateRouteTime}?time_bucket={timeBucket}";
+            
             string jsonBody = JsonSerializer.Serialize(edges);
             using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
@@ -148,11 +151,12 @@ public class Service
     /// Retrieves vector representations for a list of edges from the Python backend.
     /// </summary>
     /// <param name="edges">The list of edge IDs to convert to vectors.</param>
+    /// <param name="timeBucket">The time bucket (0-287) to include in the vectors.</param>
     /// <returns>A list of double arrays representing the edge vectors, or an empty list if retrieval fails.</returns>
     /// <remarks>
     /// Each edge is converted to a multidimensional vector representation used for ML model input.
     /// </remarks>
-    private async Task<List<double[]>> GetEdgeVectors(List<int>? edges)
+    private async Task<List<double[]>> GetEdgeVectors(List<int>? edges, int timeBucket)
     {
         if (edges == null || edges.Count == 0)
         {
@@ -160,11 +164,12 @@ public class Service
             return new List<double[]>();
         }
 
-        _logger.LogDebug("[C# Service]: Getting vectors for {EdgeCount} edges", edges.Count);
+        _logger.LogDebug("[C# Service]: Getting vectors for {EdgeCount} edges with time bucket {TimeBucket}", edges.Count, timeBucket);
 
         try
         {
-            var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.Vectors}";
+            // Append query parameter for time_bucket
+            var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.Vectors}?time_bucket={timeBucket}";
             string jsonBody = JsonSerializer.Serialize(edges);
             using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
@@ -349,10 +354,13 @@ public class Service
 
                     try
                     {
+                        // Generate a random time bucket (0-287) for this route
+                        int timeBucket = Random.Shared.Next(0, 288);
+
                         var seq = new Sequence
                         {
-                            Edges = await GetEdgeVectors(edges),
-                            TotalTime = await CreateTimeForRouteAsync(edges)
+                            Edges = await GetEdgeVectors(edges, timeBucket),
+                            TotalTime = await CreateTimeForRouteAsync(edges, timeBucket)
                         };
 
                         resultsBag.Add(seq);

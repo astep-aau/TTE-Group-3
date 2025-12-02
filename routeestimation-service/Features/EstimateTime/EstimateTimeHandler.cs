@@ -27,21 +27,26 @@ public class EstimateTimeHandler
         _pythonServiceBaseUrl = configuration.GetValue<string>("PythonService:BaseUrl") ?? "http://training-service-python";
     }
     
-    public Result<RouteResult> EstimateTime(RouteResult route, string modelName)
+    public Result<RouteResult> EstimateTime(RouteResult route, string modelName, TimeOnly timeOfTravel)
     {
         if (route == null) return Result.Fail<RouteResult>("Route cannot be null");
         if (string.IsNullOrWhiteSpace(modelName)) return Result.Fail<RouteResult>("Model name cannot be null or empty");
 
-        _logger.LogInformation("[EstimateTimeHandler] Estimating time for RouteId={RouteId} with EdgeIds=[{EdgeIds}]",
-            route.RouteId, route.EdgeIds);
+        // Calculate time bucket (5-minute intervals, 0-287)
+        int totalMinutes = timeOfTravel.Hour * 60 + timeOfTravel.Minute;
+        int timeBucket = totalMinutes / 5;
+
+        _logger.LogInformation("[EstimateTimeHandler] Estimating time for RouteId={RouteId} with EdgeIds=[{EdgeIds}] and TimeBucket={TimeBucket}",
+            route.RouteId, route.EdgeIds, timeBucket);
 
         using var http = new HttpClient();
         HttpResponseMessage response;
         try
         {
             string payload = JsonSerializer.Serialize(route.EdgeIds, _jsonOptions);
+            // Pass time_bucket as query parameter
             response = http.PostAsync(
-                $"{_pythonServiceBaseUrl}/Python/vectors",
+                $"{_pythonServiceBaseUrl}/Python/vectors?time_bucket={timeBucket}",
                 new StringContent(payload, Encoding.UTF8, "application/json")
             ).GetAwaiter().GetResult();
         }

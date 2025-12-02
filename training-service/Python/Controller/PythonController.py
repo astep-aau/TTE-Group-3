@@ -78,13 +78,13 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
 
 
 @app.post("/Python/calculate-route-time")
-def calculateRouteTime(route: List[int]):
-    return EdgeTraversalTime(route)
+def calculateRouteTime(route: List[int], time_bucket: int = 0):
+    return EdgeTraversalTime(route, time_bucket)
 
 
 @app.post("/Python/vectors")
-def getEdgeToVectors(edges: List[int]):
-    return GetEdgeToVectors(edges)
+def getEdgeToVectors(edges: List[int], time_bucket: int = 0):
+    return GetEdgeToVectors(edges, time_bucket)
 
 
 @app.post("/Python/vector-embedding")
