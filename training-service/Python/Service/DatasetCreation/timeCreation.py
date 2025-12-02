@@ -24,7 +24,7 @@ def get_edge_time(route, manager, time_bucket):
         logger.warning("No buckets available")
         return []
 
-    # Use the provided time_bucket, or find the closest available if not present
+    # Use the provided time_bucket
     chosen_bucket = time_bucket
     logger.info(f"Chosen bucket: {chosen_bucket}")
 
