@@ -197,98 +197,160 @@ def TrainLSTMModel(ModelName):
             train_mae_seconds = [loss * std_val for loss in train_losses]
             val_mae_seconds = [loss * std_val for loss in val_losses]
         else:
-            mae_bin = np.mean(np.abs(all_pred[in_bin] - all_true[in_bin]))
-            bin_mae.append(mae_bin)
+            train_mae_seconds = list(train_losses)
+            val_mae_seconds = list(val_losses)
 
-    bin_centers = (bins[:-1] + bins[1:]) / 2
+        plotInfoTrainingGraph = {
+            "type": "line",
+            "x": [list(range(1, len(train_losses)+1)), list(range(1, len(val_losses)+1))],
+            "y": [train_mae_seconds, val_mae_seconds],
+            "xlabel": "Epoch",
+            "ylabel": "MAE (seconds)",
+            "title": "Training vs Validation Loss",
+            "label": ["Train Loss", "Validation Loss"]
+        }
 
-    # -------------------------
-    # 1️⃣ Plot: MAE per route length
-    # -------------------------
-    plotInfoMAEPerLength = {
-        "type": "bar",
-        "x": bin_centers,
-        "y": bin_mae,
-        "width": (bins[1] - bins[0]) * 0.9,
-        "xlabel": "Route Length (number of steps)",
-        "ylabel": "MAE (seconds)",
-        "title": "MAE per Route Length Bucket"
-    }
+        plotInfoGapGraph = {
+            "type": "line",
+            "x": [list(range(1, len(train_losses)+1))],   # wrap in list
+            "y": [[((val_losses[i] - train_losses[i]) * (float(std_y.item()) if USE_TARGET_NORMALIZATION else 1.0)) for i in range(len(train_losses))]],  # wrap in list
+            "xlabel": "Epoch",
+            "ylabel": "Validation - Training Loss (seconds)",
+            "title": "Generalization Gap",
+            "label": ["Gap"]
+        }
 
-    # -------------------------
-    # 2️⃣ Plot: Route length histogram
-    # -------------------------
-    plotInfoRouteLengthHist = {
-        "type": "bar",
-        "x": (bins[:-1] + bins[1:]) / 2,
-        "y": np.histogram(all_lengths, bins=bins)[0],
-        "width": (bins[1] - bins[0]) * 0.9,
-        "xlabel": "Route Length (number of steps)",
-        "ylabel": "Number of Routes",
-        "title": "Route Length Distribution (10 Equal Bins)",
-        "bin_lines": bins
-    }
+        # -----------------------------
+        # Test evaluation
+        # -----------------------------
+        # Load best model for evaluation
+        best_checkpoint_path = os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}.pt")
+        if os.path.exists(best_checkpoint_path):
+            best_checkpoint = torch.load(best_checkpoint_path, map_location=device)
+            model.load_state_dict(best_checkpoint["state_dict"])
 
-    GenerateFigure(
-        plot_infos=[plotInfoTrainingGraph, plotInfoMAEPerLength, plotInfoRouteLengthHist, plotInfoGapGraph],
-        output_path=os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}_TrainingData.png")
-    )
+        test_loader = DataLoader(test_dataset, batch_size=2048)
+        model.eval()
+        all_true, all_pred, all_lengths = [], [], []
+        with torch.no_grad():
+            for xb, yb in test_loader:
+                xb, yb = xb.to(device), yb.to(device)
+                out_norm = model(xb)
+                out_seconds = denormalize_targets(out_norm)
+                all_true.append(yb.cpu())
+                all_pred.append(out_seconds.cpu())
+                # Compute route lengths (number of non-padding steps per sequence)
+                token_mask = (xb.abs().sum(dim=-1) > 0).cpu()
+                lengths = token_mask.sum(dim=-1).numpy()
+                all_lengths.extend(lengths)
 
-    # -----------------------------
-    # 6️⃣ README generation
-    # -----------------------------
-    feedforward_layers = []
-    for layer in model.fc_layers:
-        if isinstance(layer, nn.Linear):
-            feedforward_layers.append(f"Linear({layer.in_features}->{layer.out_features})")
-        elif isinstance(layer, nn.ReLU):
-            feedforward_layers.append("ReLU")
-        elif isinstance(layer, nn.Dropout):
-            feedforward_layers.append(f"Dropout({layer.p})")
-    feedforward_layers_str = " → ".join(feedforward_layers)
+            all_true = torch.cat(all_true).numpy()
+            all_pred = torch.cat(all_pred).numpy()
+            all_lengths = np.array(all_lengths)
+            test_mae = np.mean(np.abs(all_pred - all_true))
+        print(f"Final Test MAE: {test_mae:.4f} seconds")
 
-    readme_path = output_dir / f"{ModelName}Model" / "README.md"
+        num_bins = 10
+        bins = np.linspace(all_lengths.min(), all_lengths.max(), num_bins + 1)
+        bin_mae = []
 
-    readme_content = f"""# LSTM Model Training Results
+        for i in range(num_bins):
+            in_bin = (all_lengths >= bins[i]) & (all_lengths < bins[i+1])
+            if np.sum(in_bin) == 0:
+                bin_mae.append(np.nan)
+            else:
+                mae_bin = np.mean(np.abs(all_pred[in_bin] - all_true[in_bin]))
+                bin_mae.append(mae_bin)
 
-**Date:** {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}  
-**Project:** {ModelName} - Route Time Estimation / Sequence Prediction  
+        bin_centers = (bins[:-1] + bins[1:]) / 2
 
----
+        # -------------------------
+        # 1️⃣ Plot: MAE per route length
+        # -------------------------
+        plotInfoMAEPerLength = {
+            "type": "bar",
+            "x": bin_centers,
+            "y": bin_mae,
+            "width": (bins[1] - bins[0]) * 0.9,
+            "xlabel": "Route Length (number of steps)",
+            "ylabel": "MAE (seconds)",
+            "title": "MAE per Route Length Bucket"
+        }
 
-## Dataset Overview
-| Property | Value |
-|----------|-------|
-| **Number of Samples (Train/Val/Test)** | {train_size} / {val_size} / {test_size} |
-| **Route Length (Smallest/Largest)** | {(X.abs().sum(dim=2) != 0).sum(dim=1).min().item()} / {(X.abs().sum(dim=2) != 0).sum(dim=1).max().item()} |
-| **Number of Input Features** | {num_features} |
-| **Output** | 1 (Route Time in Seconds) |
+        # -------------------------
+        # 2️⃣ Plot: Route length histogram
+        # -------------------------
+        plotInfoRouteLengthHist = {
+            "type": "bar",
+            "x": (bins[:-1] + bins[1:]) / 2,
+            "y": np.histogram(all_lengths, bins=bins)[0],
+            "width": (bins[1] - bins[0]) * 0.9,
+            "xlabel": "Route Length (number of steps)",
+            "ylabel": "Number of Routes",
+            "title": "Route Length Distribution (10 Equal Bins)",
+            "bin_lines": bins
+        }
 
----
+        GenerateFigure(
+            plot_infos=[plotInfoTrainingGraph, plotInfoMAEPerLength, plotInfoRouteLengthHist, plotInfoGapGraph],
+            output_path=os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}_TrainingData.png")
+        )
 
-## Model Architecture
-| Component | Configuration |
-|-----------|---------------|
-| **Model Type** | {type(model).__name__} |
-| **Input Features** | {num_features} |
-| **Hidden Size** | {model.lstm.hidden_size} |
-| **Dropout** | {dropout_value} |
-| **Feedforward Layers** | {feedforward_layers_str} |
-| **Total Parameters** | {sum(p.numel() for p in model.parameters())} |
+        # -----------------------------
+        # 6️⃣ README generation
+        # -----------------------------
+        feedforward_layers = []
+        for layer in model.fc_layers:
+            if isinstance(layer, nn.Linear):
+                feedforward_layers.append(f"Linear({layer.in_features}->{layer.out_features})")
+            elif isinstance(layer, nn.ReLU):
+                feedforward_layers.append("ReLU")
+            elif isinstance(layer, nn.Dropout):
+                feedforward_layers.append(f"Dropout({layer.p})")
+        feedforward_layers_str = " → ".join(feedforward_layers)
 
----
+        readme_path = output_dir / f"{ModelName}Model" / "README.md"
 
-## Training Configuration
-| Property | Value |
-|----------|-------|
-| **Total Epochs** | {epoch + 1} |
-| **Early Stopping** | {"Yes" if epochs_no_improve >= patience else "No"} |
-| **Batch Size (Train / Val / Test)** | {train_loader.batch_size} / {val_loader.batch_size} / {test_loader.batch_size} |
-| **Optimizer** | {type(optimizer).__name__} |
-| **Learning Rate** | {optimizer.param_groups[0]['lr']} |
-| **Loss Function** | {type(criterion).__name__} |
+        readme_content = f"""# LSTM Model Training Results
 
----
+    **Date:** {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}  
+    **Project:** {ModelName} - Route Time Estimation / Sequence Prediction  
+
+    ---
+
+    ## Dataset Overview
+    | Property | Value |
+    |----------|-------|
+    | **Number of Samples (Train/Val/Test)** | {train_size} / {val_size} / {test_size} |
+    | **Route Length (Smallest/Largest)** | {(X.abs().sum(dim=2) != 0).sum(dim=1).min().item()} / {(X.abs().sum(dim=2) != 0).sum(dim=1).max().item()} |
+    | **Number of Input Features** | {num_features} |
+    | **Output** | 1 (Route Time in Seconds) |
+
+    ---
+
+    ## Model Architecture
+    | Component | Configuration |
+    |-----------|---------------|
+    | **Model Type** | {type(model).__name__} |
+    | **Input Features** | {num_features} |
+    | **Hidden Size** | {model.lstm.hidden_size} |
+    | **Dropout** | {dropout_value} |
+    | **Feedforward Layers** | {feedforward_layers_str} |
+    | **Total Parameters** | {sum(p.numel() for p in model.parameters())} |
+
+    ---
+
+    ## Training Configuration
+    | Property | Value |
+    |----------|-------|
+    | **Total Epochs** | {epoch + 1} |
+    | **Early Stopping** | {"Yes" if epochs_no_improve >= patience else "No"} |
+    | **Batch Size (Train / Val / Test)** | {train_loader.batch_size} / {val_loader.batch_size} / {test_loader.batch_size} |
+    | **Optimizer** | {type(optimizer).__name__} |
+    | **Learning Rate** | {optimizer.param_groups[0]['lr']} |
+    | **Loss Function** | {type(criterion).__name__} |
+
+    ---
 
     ## Performance Metrics
     | Metric | Train | Validation | Test |

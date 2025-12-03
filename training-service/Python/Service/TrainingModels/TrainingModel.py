@@ -22,7 +22,7 @@ class LSTMModel(nn.Module):
         )
 
     def forward(self, x):
-        output_seq, _ = self.lstm(x)       # [batch, seq_len, hidden_size]
+        output_seq, _ = self.lstm(x)            # [batch, seq_len, hidden_size]
         last_timestep = output_seq[:, -1, :]  
-        out = self.fc_layers(last_timestep)  # fc_layers stays Linear(hidden_size -> 64)
+        out = self.fc_layers(last_timestep)
         return out

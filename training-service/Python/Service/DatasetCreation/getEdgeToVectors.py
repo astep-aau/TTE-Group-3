@@ -37,7 +37,9 @@ def GetEdgeToVectors(edges, time_bucket=0):
         if not vectors:
             raise ValueError('No Vectors Converted. (Error in Conversion)')
 
+
         return vectors
 
+
     except Exception as e:
-        raise RuntimeError(str(e))
+        raise RuntimeError(str(e)) from e
