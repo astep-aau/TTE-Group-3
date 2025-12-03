@@ -11,13 +11,13 @@ class LSTMModel(nn.Module):
         self.fc_layers = nn.Sequential(
             nn.Linear(hidden_size, 64),
             nn.ReLU(),
-            #nn.Dropout(dropout),
+            nn.Dropout(dropout),
             nn.Linear(64, 32),
             nn.ReLU(),
-            #nn.Dropout(dropout),
+            nn.Dropout(dropout),
             nn.Linear(32, 16),
             nn.ReLU(),
-            #nn.Dropout(dropout),
+            nn.Dropout(dropout),
             nn.Linear(16, 1),
         )
 

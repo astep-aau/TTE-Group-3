@@ -48,11 +48,10 @@ public class Service
             var url = $"{_pythonSettings.BaseUrl}{endpoint}";
             
             _logger.LogDebug("[C# Service]: Sending GET request to {Url}", url);
-            
+
             using var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromMinutes(5)); // or appropriate duration
-            var httpResponse = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, url),
-                HttpCompletionOption.ResponseContentRead, cts.Token);
+            cts.CancelAfter(TimeSpan.FromMinutes(5));
+            var httpResponse = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, url), HttpCompletionOption.ResponseContentRead, cts.Token);
             httpResponse.EnsureSuccessStatusCode();
 
             string responseJson = await httpResponse.Content.ReadAsStringAsync();
@@ -113,12 +112,9 @@ public class Service
             var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.CalculateRouteTime}";
             string jsonBody = JsonSerializer.Serialize(edges);
             using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
             using var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromMinutes(5)); // or appropriate duration
-            var response = await _client.PostAsync(url,
-                content, cts.Token);
-            
+            cts.CancelAfter(TimeSpan.FromMinutes(5));
+            HttpResponseMessage response = await _client.PostAsync(url, content, cts.Token);
             response.EnsureSuccessStatusCode();
 
             string responseJson = await response.Content.ReadAsStringAsync();
@@ -168,11 +164,9 @@ public class Service
             var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.Vectors}";
             string jsonBody = JsonSerializer.Serialize(edges);
             using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
             using var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromMinutes(5)); // or appropriate duration
-            var response = await _client.PostAsync(url,
-                content, cts.Token);
+            cts.CancelAfter(TimeSpan.FromMinutes(5));
+            HttpResponseMessage response = await _client.PostAsync(url, content, cts.Token);
             response.EnsureSuccessStatusCode();
 
             string responseJson = await response.Content.ReadAsStringAsync();
@@ -218,8 +212,7 @@ public class Service
             var url = $"{_pythonSettings.BaseUrl}{endpoint}";
     
             using var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromHours(2)); // Adjust based on expected training duration
-    
+            cts.CancelAfter(TimeSpan.FromHours(5));
             HttpResponseMessage response = await _client.PostAsync(url, null, cts.Token);
             response.EnsureSuccessStatusCode();
     
@@ -268,7 +261,6 @@ public class Service
             
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromMinutes(10)); // Adjust based on expected upload duration
-            
             HttpResponseMessage response = await _client.PostAsync(url, form, cts.Token);
             response.EnsureSuccessStatusCode();
     
@@ -324,63 +316,80 @@ public class Service
 
         var totalStopwatch = Stopwatch.StartNew();
 
-        try
+try
+{
+    TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
+
+    StatusTracker.Status = "Creating Routes";
+    var edgeSequences = await CreateRoute(numberOfRoutes, minLength, maxLength);
+    StatusTracker.Status = $"Created {edgeSequences.Count} routes";
+
+    var resultsBag = new ConcurrentBag<Sequence>();
+    var semaphore = new SemaphoreSlim(40);
+    var tasks = new List<Task>();
+    var sequenceCounter = 1;
+
+    // Locks for thread-safety
+    var hashSetLock = new object();
+    var counterLock = new object();
+    var uniqueSequences = new HashSet<Sequence>();
+
+    _logger.LogInformation("[C# Service]: Processing {RouteCount} routes with max 40 concurrent tasks", edgeSequences.Count);
+
+    foreach (var edges in edgeSequences)
+    {
+        await semaphore.WaitAsync();
+
+        tasks.Add(Task.Run(async () =>
         {
-            TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
+            int currentSeq;
+            lock (counterLock) currentSeq = sequenceCounter++;
 
-            StatusTracker.Status = "Creating Routes";
-            var edgeSequences = await CreateRoute(numberOfRoutes, minLength, maxLength);
-            StatusTracker.Status = $"Created {edgeSequences.Count} routes";
+            var routeStopwatch = Stopwatch.StartNew();
+            StatusTracker.Status = $"Processing sequence {currentSeq} of {edgeSequences.Count}";
 
-            var resultsBag = new ConcurrentBag<Sequence>();
-            var semaphore = new SemaphoreSlim(40);
-            var tasks = new List<Task>();
-            var sequenceCounter = 0;
-            
-            _logger.LogInformation("[C# Service]: Processed {RouteCount} routes with max 40 concurrent tasks", edgeSequences.Count);
-
-            foreach (var edges in edgeSequences)
+            try
             {
-                await semaphore.WaitAsync();
-
-                tasks.Add(Task.Run(async () =>
+                var seq = new Sequence
                 {
-                    int currentSeq;
-                    lock (resultsBag) currentSeq = sequenceCounter++;
+                    Edges = await GetEdgeVectors(edges),
+                    TotalTime = await CreateTimeForRouteAsync(edges)
+                };
 
-                    var routeStopwatch = Stopwatch.StartNew();
-                    StatusTracker.Status = $"Processing sequence {currentSeq} of {edgeSequences.Count}";
+                bool added;
+                lock (hashSetLock)
+                {
+                    added = uniqueSequences.Add(seq);
+                }
 
-                    try
-                    {
-                        var seq = new Sequence
-                        {
-                            Edges = await GetEdgeVectors(edges),
-                            TotalTime = await CreateTimeForRouteAsync(edges)
-                        };
-
-                        resultsBag.Add(seq);
-                        _logger.LogDebug("[C# Service]: Route {RouteId} finished on thread {ThreadId} in {ElapsedMs} ms",
-                            currentSeq, Environment.CurrentManagedThreadId, routeStopwatch.ElapsedMilliseconds);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[C# Service]: Error processing route {RouteId}", currentSeq);
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                }));
+                if (added)
+                {
+                    resultsBag.Add(seq);
+                    _logger.LogDebug("[C# Service]: Route {RouteId} finished on thread {ThreadId} in {ElapsedMs} ms",
+                        currentSeq, Environment.CurrentManagedThreadId, routeStopwatch.ElapsedMilliseconds);
+                }
+                else
+                {
+                    _logger.LogDebug("[C# Service]: Duplicate route {RouteId} ignored", currentSeq);
+                }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[C# Service]: Error processing route {RouteId}", currentSeq);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }));
+    }
 
-            await Task.WhenAll(tasks);
-            totalStopwatch.Stop();
+    await Task.WhenAll(tasks);
 
-            _logger.LogInformation("[C# Service]: All routes processed in {ElapsedMs} ms. Total sequences: {SequenceCount}",
-                totalStopwatch.ElapsedMilliseconds, resultsBag.Count);
+    trainingSet.Sequences = uniqueSequences.ToList();
 
-            trainingSet.Sequences.AddRange(resultsBag);
+    _logger.LogInformation("[C# Service]: All routes processed. Total sequences: {SequenceCount}", uniqueSequences.Count);
+
 
             await UploadTrainingSetAsync(trainingSet, modelName);
 
