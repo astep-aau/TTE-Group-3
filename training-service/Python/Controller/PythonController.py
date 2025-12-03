@@ -2,7 +2,6 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from typing import List
 from pathlib import Path
 import sys
-import json
 import logging
 from contextlib import asynccontextmanager
 
