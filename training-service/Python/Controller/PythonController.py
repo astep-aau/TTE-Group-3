@@ -52,36 +52,6 @@ app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
 # -----------------------------
 #     Endpoints
 # -----------------------------
-from TrainingModels.predictTime import predict_total_time
-from DatasetCreation.dataCreation import GenerateRoutes
-from DatasetCreation.timeCreation import EdgeTraversalTime
-from DatasetCreation.getEdgeToVectors import GetEdgeToVectors
-from VectorEmbedding.Edge2Vec import VectorEmbedding
-from TrainingModels.LSTMTraining import TrainLSTMModel
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Application lifespan context manager for future startup/shutdown tasks.
-    """
-    logger.info("🔵 Starting Python API...")
-    logger.info("✅ Database connections will be created per-request")
-    
-    yield
-    
-    logger.info("🔵 Shutting down API...")
-
-
-# -----------------------------
-# FastAPI App
-# -----------------------------
-app = FastAPI(title="TTE Python API Controller", lifespan=lifespan)
-
-
-# -----------------------------
-#     Endpoints
-# -----------------------------
 @app.post("/Python/predict-time/{ModelName}")
 def PredictTime(edges: List[List[float]], ModelName: str):
     return {"predicted_time": predict_total_time(edges, ModelName)}
