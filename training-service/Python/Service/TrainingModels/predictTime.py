@@ -110,7 +110,7 @@ def predict_total_time(route, ModelName, ignore_checkpoint_normalization: bool =
     Returns:
         float: predicted total time in seconds
     """
-    checkpoint_path = Path(__file__).parent.parent / "Data" / "TrainedModels" / f"{ModelName}Model" / f"{ModelName}.pt"
+    checkpoint_path = Path(__file__).parent.parent / "Data" / "TrainedModels" / f"{ModelName}" / f"{ModelName}.pt"
     model, normalization = load_model_from_checkpoint(checkpoint_path)
     
     # Decide which normalization to use. If caller requests to ignore checkpoint
