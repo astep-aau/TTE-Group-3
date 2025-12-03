@@ -20,15 +20,24 @@ public class TestService
         .AddJsonFile("appsettings.json", optional: false)
         .Build();
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler = new();
-    
+    private readonly Mock<IHttpClientFactory> _mockHttpClientFactory = new();
+
     private TrainingService.Services.Service CreateService()
     {
         var pythonBackendSettings = new PythonBackendSettings();
         _configuration.GetSection("PythonBackend").Bind(pythonBackendSettings);
         var options = Options.Create(pythonBackendSettings);
-    
-        var mockHttpClient = new HttpClient(_mockHttpMessageHandler.Object);
-        return new TrainingService.Services.Service(_mockLogger.Object, options, mockHttpClient);
+
+        var mockHttpClient = new HttpClient(_mockHttpMessageHandler.Object)
+        {
+            BaseAddress = new Uri("http://localhost:5000")
+        };
+
+        _mockHttpClientFactory
+            .Setup(f => f.CreateClient("PythonBackend"))
+            .Returns(mockHttpClient);
+
+        return new TrainingService.Services.Service(_mockLogger.Object, options, _mockHttpClientFactory.Object);
     }
 
     #region CreateTrainingSet Tests
@@ -54,11 +63,11 @@ public class TestService
         // Arrange
         var service = CreateService();
         SetupHttpResponse(HttpStatusCode.OK, "{ invalid json }");
-    
+
         // Act & Assert
         var exception = await Assert.ThrowsAnyAsync<JsonException>(async () =>
             await service.CreateTrainingSet("test-model", 10, 5, 15));
-    
+
         // Verify error was logged
         VerifyLogContains(LogLevel.Error, "JSON deserialization error");
     }
@@ -149,7 +158,7 @@ public class TestService
 
         // Assert
         Assert.Equal("Training Done", result);
-        VerifyLogContains(LogLevel.Information, "Processing 8 routes with max 4 concurrent tasks");
+        VerifyLogContains(LogLevel.Information, "Processing 8 routes with max 40 concurrent tasks");
     }
 
     [Fact]
@@ -276,7 +285,11 @@ public class TestService
         };
 
         var options = Options.Create(customSettings);
-        var service = new TrainingService.Services.Service(_mockLogger.Object, options);
+        var mockFactory = new Mock<IHttpClientFactory>();
+        mockFactory.Setup(f => f.CreateClient("PythonBackend"))
+            .Returns(new HttpClient());
+
+        var service = new TrainingService.Services.Service(_mockLogger.Object, options, mockFactory.Object);
 
         // This test verifies the configuration is properly injected
         Assert.NotNull(service);
@@ -289,7 +302,7 @@ public class TestService
         var service = CreateService();
         var routes = new List<List<int>> { new() { 1 } };
         string routeResponse = JsonSerializer.Serialize(new { routes });
-    
+
         var capturedUrls = new List<string>();
         SetupSequentialResponses(new[]
         {
@@ -299,23 +312,23 @@ public class TestService
             (HttpStatusCode.OK, ""),
             (HttpStatusCode.OK, "Training complete")
         });
-    
+
         _mockHttpMessageHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => 
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) =>
                 capturedUrls.Add(req.RequestUri?.ToString() ?? ""))
-            .ReturnsAsync(() => new HttpResponseMessage 
-            { 
-                StatusCode = HttpStatusCode.OK, 
-                Content = new StringContent(routeResponse) 
+            .ReturnsAsync(() => new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(routeResponse)
             });
-    
+
         // Act
         await service.CreateTrainingSet("test-model", 5, 10, 20);
-    
+
         // Assert
         Assert.Contains(capturedUrls, url => url.Contains("/Python/generate-routes/5/10/20"));
     }
