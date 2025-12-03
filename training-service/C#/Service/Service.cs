@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using TrainingService.Configuration;
-using System.Net;
 
 namespace TrainingService.Services;
 
