@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.OpenApi.Models;
 using TrainingService.Configuration;
 using TrainingService.Services;
@@ -17,6 +18,14 @@ builder.Configuration
 
 builder.Services.AddControllers();
 builder.Services.Configure<PythonBackendSettings>(builder.Configuration.GetSection("PythonBackend"));
+
+// Register HttpClient for Python backend
+builder.Services.AddHttpClient("PythonBackend", client =>
+{
+    client.Timeout = Timeout.InfiniteTimeSpan;
+    client.DefaultRequestVersion = HttpVersion.Version11;
+    client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+});
 
 // Register DI services
 builder.Services.AddSingleton<Service>();
