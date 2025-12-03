@@ -3,7 +3,6 @@ using TrainingService.Domain;
 using System.Text;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Net;
 using Microsoft.Extensions.Options;
 using TrainingService.Configuration;
 
@@ -49,8 +48,11 @@ public class Service
             var url = $"{_pythonSettings.BaseUrl}{endpoint}";
             
             _logger.LogDebug("[C# Service]: Sending GET request to {Url}", url);
-
-            var httpResponse = await _client.GetAsync(url);
+            
+            using var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromMinutes(5)); // or appropriate duration
+            var httpResponse = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, url),
+                HttpCompletionOption.ResponseContentRead, cts.Token);
             httpResponse.EnsureSuccessStatusCode();
 
             string responseJson = await httpResponse.Content.ReadAsStringAsync();
@@ -112,7 +114,11 @@ public class Service
             string jsonBody = JsonSerializer.Serialize(edges);
             using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-            HttpResponseMessage response = await _client.PostAsync(url, content);
+            using var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromMinutes(5)); // or appropriate duration
+            var response = await _client.PostAsync(url,
+                content, cts.Token);
+            
             response.EnsureSuccessStatusCode();
 
             string responseJson = await response.Content.ReadAsStringAsync();
@@ -163,7 +169,10 @@ public class Service
             string jsonBody = JsonSerializer.Serialize(edges);
             using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-            HttpResponseMessage response = await _client.PostAsync(url, content);
+            using var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromMinutes(5)); // or appropriate duration
+            var response = await _client.PostAsync(url,
+                content, cts.Token);
             response.EnsureSuccessStatusCode();
 
             string responseJson = await response.Content.ReadAsStringAsync();
