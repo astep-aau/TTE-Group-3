@@ -44,7 +44,7 @@ public class CreateRouteConsumer : IConsumer<CreateProcessEvent>
             CorrelationId = evt.CorrelationId,
             Origin = evt.Origin,
             Destination = evt.Destination,
-            TimeOfTravel = evt.TimeOfTravel,    // TODO: Use this for time-dependent routing and time estimation
+            TimeOfTravel = evt.TimeOfTravel!.Value,
             CreatedAt = evt.CreatedAt,
             ModelVersion = evt.ModelVersion     // Used in the translator service, and is just passed through here
         };

@@ -19,6 +19,7 @@ public class CreateRouteValidator : AbstractValidator<CreateProcessEvent>
             .Must(BeLatLon).WithMessage("[Validator] Destination must be in 'lat,lon' format with numeric values");
         RuleFor(x => x.Origin).NotEqual(x => x.Destination).WithMessage("[Validator] Origin and Destination must be different");
         RuleFor(x => x.CreatedAt).NotEqual(default(DateTime)).WithMessage("[Validator] CreatedAt must be set");
+        RuleFor(x => x.TimeOfTravel).NotNull().WithMessage("[Validator] TimeOfTravel must be specified");
         RuleFor(x => x.ModelVersion).NotEmpty().WithMessage("[Validator] ModelVersion must be specified");
     }
 

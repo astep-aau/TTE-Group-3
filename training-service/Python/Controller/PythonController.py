@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from typing import List
 from pathlib import Path
 import sys
+import json
 import logging
 from contextlib import asynccontextmanager
 
@@ -56,6 +57,7 @@ def PredictTime(edges: List[List[float]], ModelName: str):
     return {"predicted_time": predict_total_time(edges, ModelName)}
 
 
+
 @app.get("/Python/generate-routes/{NumberOfSequences}/{MinLengthOfSequence}/{MaxLengthOfSequence}")
 def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOfSequence: int):
     if NumberOfSequences <= 0:
@@ -76,20 +78,25 @@ def generateRoutes(NumberOfSequences: int, MinLengthOfSequence: int, MaxLengthOf
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+
 @app.post("/Python/calculate-route-time")
-def calculateRouteTime(route: List[int]):
-    return EdgeTraversalTime(route)
+def calculateRouteTime(route: List[int], time_bucket: int = 0):
+    return EdgeTraversalTime(route, time_bucket)
+
 
 
 @app.post("/Python/vectors")
-def getEdgeToVectors(edges: List[int]):
-    return GetEdgeToVectors(edges)
+def getEdgeToVectors(edges: List[int], time_bucket: int = 0):
+    return GetEdgeToVectors(edges, time_bucket)
+
 
 
 @app.post("/Python/vector-embedding")
 def vectorEmbedding():
     VectorEmbedding()
     return {"status": "Edge embeddings generated successfully."}
+
 
 
 @app.post("/Python/train-lstm/{ModelName}")

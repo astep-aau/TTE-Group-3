@@ -367,7 +367,7 @@ def TrainLSTMModel(ModelName):
     ---
     """
 
-        with open(readme_path, "w") as f:
+        with open(readme_path, "w", encoding="utf-8") as f:
             f.write(readme_content)
 
         print(f"Training done. Results saved to {readme_path}")

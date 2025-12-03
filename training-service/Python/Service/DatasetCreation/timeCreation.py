@@ -1,4 +1,3 @@
-import random
 import numpy as np
 import logging
 import sys
@@ -11,9 +10,9 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def get_edge_time(route, manager):
+def get_edge_time(route, manager, time_bucket):
     logger.info(f"=== Starting get_edge_time ===")
-    logger.info(f"Route: {route}, Length: {len(route)}")
+    logger.info(f"Route: {route}, Length: {len(route)}, TimeBucket: {time_bucket}")
 
     times = []
     bucketsAvailable = manager.get_available_buckets(route)
@@ -24,7 +23,8 @@ def get_edge_time(route, manager):
         logger.warning("No buckets available")
         return []
 
-    chosen_bucket = random.choice(sorted(bucketsAvailable))
+    # Use the provided time_bucket
+    chosen_bucket = time_bucket
     logger.info(f"Chosen bucket: {chosen_bucket}")
 
     for edgeId in route:
@@ -76,13 +76,13 @@ def get_edge_time(route, manager):
     return times
 
 
-def EdgeTraversalTime(route):
+def EdgeTraversalTime(route, time_bucket=0):
     if not route:
         raise ValueError('No route data provided. (Empty Route)')
 
     try:
         manager = get_lookup_manager()
-        return get_edge_time(route, manager)
+        return get_edge_time(route, manager, time_bucket)
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
         raise RuntimeError(f"Error calculating edge times: {e}") from e
