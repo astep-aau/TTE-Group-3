@@ -11,18 +11,18 @@ class LSTMModel(nn.Module):
         self.fc_layers = nn.Sequential(
             nn.Linear(hidden_size, 64),
             nn.ReLU(),
-            nn.Dropout(dropout),
+            #nn.Dropout(dropout),
             nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Dropout(dropout),
+            #nn.Dropout(dropout),
             nn.Linear(32, 16),
             nn.ReLU(),
-            nn.Dropout(dropout),
+            #nn.Dropout(dropout),
             nn.Linear(16, 1),
         )
 
     def forward(self, x):
-        output_seq, _ = self.lstm(x)       # [batch, seq_len, hidden_size]
+        output_seq, _ = self.lstm(x)            # [batch, seq_len, hidden_size]
         last_timestep = output_seq[:, -1, :]  
-        out = self.fc_layers(last_timestep)  # fc_layers stays Linear(hidden_size -> 64)
+        out = self.fc_layers(last_timestep)
         return out
