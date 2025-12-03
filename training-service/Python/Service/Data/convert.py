@@ -1,87 +1,70 @@
-import json
 import sqlite3
-from tqdm import tqdm
+import numpy as np
+import json
+import csv
+from pathlib import Path
 
-print("Starting conversion process...")
+def convert_db_to_lookup_tables():
+    """Convert SQLite database to memory-mapped NumPy arrays and CSV"""
+    db_path = Path(__file__).parent / "data.db"
+    output_dir = Path(__file__).parent / "LookupTableData"
+    output_dir.mkdir(exist_ok=True)
 
-# --- Load JSON ---
-print("Loading RoadTraversal.json...")
-with open("RoadTraversal.json", "r") as f:
-    data = json.load(f)
-print(f"Loaded {len(data)} edges from JSON")
-
-# --- Init SQLite ---
-print("Connecting to data.db...")
-conn = sqlite3.connect("data.db")
-cur = conn.cursor()
-
-# Create traversals table with edge_id
-print("Creating/verifying traversals table...")
-cur.execute("""
-CREATE TABLE IF NOT EXISTS traversals (
-    edge_id INTEGER,
-    traversal_id INTEGER,
-    time_s REAL,
-    PRIMARY KEY (edge_id, traversal_id)
-);
-""")
-
-# Check if length_cm exists in embeddings table
-print("Checking embeddings table schema...")
-cur.execute("PRAGMA table_info(embeddings)")
-embeddings_columns = [column[1] for column in cur.fetchall()]
-
-if "length_cm" not in embeddings_columns:
-    print("Adding length_cm column to embeddings table...")
-    cur.execute("ALTER TABLE embeddings ADD COLUMN length_cm INTEGER")
-    conn.commit()
-else:
-    print("length_cm column already exists in embeddings table")
-
-# Insert traversal data and update embeddings with length
-print("Processing edges and traversals...")
-traversals_inserted = 0
-lengths_updated = 0
-
-for edge_id, edge in tqdm(data.items(), desc="Processing edges", unit="edge"):
-    eid = int(edge_id)
-    length = edge.get("length (cm)")
-
-    # Update embeddings table with length (replace existing data)
-    cur.execute("""
-        UPDATE embeddings SET length_cm = ? WHERE edge_id = ?
-    """, (length, eid))
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
     
-    if cur.rowcount > 0:
-        lengths_updated += 1
+    print("Converting embeddings...")
+    # Get all embeddings ordered by edge_id
+    cursor.execute("SELECT edge_id, vector FROM embeddings ORDER BY CAST(edge_id AS INTEGER)")
+    rows = cursor.fetchall()
 
-    # Insert traversals
-    if "traversals" in edge:
-        for trav_id, trav in edge["traversals"].items():
-            cur.execute("""
-                INSERT OR REPLACE INTO traversals (edge_id, traversal_id, time_s)
-                VALUES (?, ?, ?)
-            """, (
-                eid,
-                int(trav_id),
-                trav.get("time to traverse (s)")
-            ))
-            traversals_inserted += 1
+    # Verify edge IDs are sequential starting from 0
+    expected_ids = list(range(len(rows)))
+    actual_ids = [int(row[0]) for row in rows]
+    
+    if actual_ids != expected_ids:
+        print("⚠️  Warning: Edge IDs are not sequential from 0!")
+        print(f"   Expected: {expected_ids[:10]}...")
+        print(f"   Actual:   {actual_ids[:10]}...")
+        # Fall back to mapping file
+        edge_to_idx = {str(edge_id): idx for idx, edge_id in enumerate(actual_ids)}
+        with open(output_dir / "edge_mapping.json", 'w') as f:
+            json.dump(edge_to_idx, f, separators=(',', ':'))
+        print("   Created edge_mapping.json as fallback")
+    else:
+        print("✓ Edge IDs are sequential from 0 - no mapping file needed")
 
-conn.commit()
-print(f"Committed {traversals_inserted} traversals and {lengths_updated} length updates")
+    # Save vectors as memory-mapped numpy array
+    vectors = [json.loads(row[1]) for row in rows]
+    vectors_array = np.array(vectors, dtype=np.float32)
+    np.save(output_dir / "embeddings.npy", vectors_array)
 
-# Create indexes for speed
-print("Creating indexes...")
-cur.execute("CREATE INDEX IF NOT EXISTS idx_trav_edge ON traversals(edge_id)")
-cur.execute("CREATE INDEX IF NOT EXISTS idx_trav_pair ON traversals(edge_id, traversal_id)")
+    print(f"✓ Embeddings: {len(vectors)} vectors × {len(vectors[0])} dims = {vectors_array.nbytes / 1024:.1f}KB")
 
-conn.commit()
-conn.close()
+    print("\nConverting traversals...")
+    cursor.execute("""
+        SELECT edge_id, traversal_id, time_s
+        FROM traversals
+        ORDER BY edge_id, traversal_id
+    """)
 
-print("=" * 50)
-print("Conversion complete → data.db")
-print(f"  Edges processed: {len(data)}")
-print(f"  Traversals inserted: {traversals_inserted}")
-print(f"  Lengths updated: {lengths_updated}")
-print("=" * 50)
+    with open(output_dir / "traversals.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['edge_id', 'traversal_id', 'time_s'])
+
+        count = 0
+        for row in cursor:
+            writer.writerow(row)
+            count += 1
+            if count % 500000 == 0:
+                print(f"  Written {count:,} rows...")
+
+    print(f"✓ Traversals: {count:,} rows")
+
+    conn.close()
+    print(f"\nFiles created in {output_dir}/")
+    print(f"  - embeddings.npy (memory-mapped)")
+    print(f"  - traversals.csv")
+
+if __name__ == "__main__":
+    convert_db_to_lookup_tables()

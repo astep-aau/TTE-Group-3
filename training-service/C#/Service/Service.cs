@@ -19,16 +19,11 @@ public class Service
     private readonly ILogger<Service> _logger;
     private readonly PythonBackendSettings _pythonSettings;
 
-    public Service(ILogger<Service> logger, IOptions<PythonBackendSettings> pythonSettings, HttpClient? httpClient = null)
+    public Service(ILogger<Service> logger, IOptions<PythonBackendSettings> pythonSettings, IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
         _pythonSettings = pythonSettings.Value;
-        _client = httpClient ?? new HttpClient
-        {
-            Timeout = Timeout.InfiniteTimeSpan,
-            DefaultRequestVersion = HttpVersion.Version11,
-            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
-        };
+        _client = httpClientFactory.CreateClient("PythonBackend");
     }
 
     /// <summary>
@@ -301,7 +296,7 @@ public class Service
     /// <para>This method orchestrates the entire training pipeline:</para>
     /// <list type="number">
     /// <item><description>Generates random routes</description></item>
-    /// <item><description>Processes routes concurrently (max 4 parallel tasks)</description></item>
+    /// <item><description>Processes routes concurrently (40 parallel tasks)</description></item>
     /// <item><description>Calculates edge vectors and route times</description></item>
     /// <item><description>Uploads the training set</description></item>
     /// <item><description>Initiates LSTM training</description></item>
@@ -331,9 +326,9 @@ public class Service
             var resultsBag = new ConcurrentBag<Sequence>();
             var semaphore = new SemaphoreSlim(40);
             var tasks = new List<Task>();
-            var sequenceCounter = 1;
-
-            _logger.LogInformation("[C# Service]: Processing {RouteCount} routes with max 4 concurrent tasks", edgeSequences.Count);
+            var sequenceCounter = 0;
+            
+            _logger.LogInformation("[C# Service]: Processed {RouteCount} routes with max 40 concurrent tasks", edgeSequences.Count);
 
             foreach (var edges in edgeSequences)
             {
