@@ -28,4 +28,4 @@ def GetEdgeToVectors(edges):
         return vectors
 
     except Exception as e:
-        raise RuntimeError(str(e))
+        raise RuntimeError(str(e)) from e
