@@ -111,11 +111,3 @@ async def upload(file: UploadFile = File(...)):
     with open(file_path, "wb") as f:
         f.write(await file.read())
     return {"status": "ok", "file_saved": str(file_path)}
-
-
-@app.post("/Python/TrainingFile")
-async def upload(file: UploadFile = File(...)):
-    file_path = Path(__file__).parent.parent / "Service" / "Data" / "TrainingSet.json"
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
-    return {"status": "ok", "file_saved": str(file_path)}
