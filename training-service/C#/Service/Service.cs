@@ -318,32 +318,32 @@ public class Service
 
         var totalStopwatch = Stopwatch.StartNew();
 
-try
-{
-    TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
-
-    StatusTracker.Status = "Creating Routes";
-    var edgeSequences = await CreateRoute(numberOfRoutes, minLength, maxLength);
-    StatusTracker.Status = $"Created {edgeSequences.Count} routes";
-
-    var resultsBag = new ConcurrentBag<Sequence>();
-    var semaphore = new SemaphoreSlim(40);
-    var tasks = new List<Task>();
-    var sequenceCounter = 1;
-
-    // Locks for thread-safety
-    var hashSetLock = new object();
-    var counterLock = new object();
-    var uniqueSequences = new HashSet<Sequence>();
-
-    _logger.LogInformation("[C# Service]: Processing {RouteCount} routes with max 40 concurrent tasks", edgeSequences.Count);
-
-    foreach (var edges in edgeSequences)
-    {
-        await semaphore.WaitAsync();
-
-        tasks.Add(Task.Run(async () =>
+        try
         {
+            TrainingSet trainingSet = new TrainingSet { Sequences = new List<Sequence>() };
+
+            StatusTracker.Status = "Creating Routes";
+            var edgeSequences = await CreateRoute(numberOfRoutes, minLength, maxLength);
+            StatusTracker.Status = $"Created {edgeSequences.Count} routes";
+
+            var resultsBag = new ConcurrentBag<Sequence>();
+            var semaphore = new SemaphoreSlim(40);
+            var tasks = new List<Task>();
+            var sequenceCounter = 1;
+
+            // Locks for thread-safety
+            var hashSetLock = new object();
+            var counterLock = new object();
+            var uniqueSequences = new HashSet<Sequence>();
+
+            _logger.LogInformation("[C# Service]: Processing {RouteCount} routes with max 40 concurrent tasks", edgeSequences.Count);
+
+            foreach (var edges in edgeSequences)
+            {
+                await semaphore.WaitAsync();
+
+                tasks.Add(Task.Run(async () =>
+                {
             int currentSeq;
             lock (counterLock) currentSeq = sequenceCounter++;
 
