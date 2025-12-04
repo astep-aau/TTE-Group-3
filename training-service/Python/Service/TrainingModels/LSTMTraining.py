@@ -64,13 +64,16 @@ def TrainLSTMModel(ModelName):
         max_len = max(len(seq) for seq in X)
         num_features = len(X[0][0])
         X_padded = np.zeros((len(X), max_len, num_features), dtype=np.float32)
+        lengths = []  # Track actual sequence lengths
         for i, seq in enumerate(X):
+            lengths.append(len(seq))
             for j, edge_vector in enumerate(seq):
                 X_padded[i, j, :] = edge_vector
 
         X = torch.tensor(X_padded)
         y = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
-        dataset = TensorDataset(X, y)
+        lengths = torch.tensor(lengths, dtype=torch.long)
+        dataset = TensorDataset(X, y, lengths)
 
         # Train/val/test split
         total_size = len(dataset)
@@ -86,7 +89,7 @@ def TrainLSTMModel(ModelName):
         # Normalization
         # We always compute mean/std for informational purposes, but whether they are applied
         # during training/inference is controlled by USE_TARGET_NORMALIZATION.
-        y_train = torch.stack([yb for _, yb in train_dataset])
+        y_train = torch.stack([yb for _, yb, _ in train_dataset])
         mean_y = y_train.mean()
         std_y = y_train.std()
 
@@ -130,11 +133,11 @@ def TrainLSTMModel(ModelName):
             # Training
             model.train()
             epoch_loss = 0
-            for xb, yb in train_loader:
-                xb, yb = xb.to(device), yb.to(device)
+            for xb, yb, lb in train_loader:
+                xb, yb, lb = xb.to(device), yb.to(device), lb.to(device)
                 yb_norm = normalize_targets(yb)
                 optimizer.zero_grad()
-                out = model(xb)
+                out = model(xb, lengths=lb)
                 loss = criterion(out, yb_norm)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -147,10 +150,10 @@ def TrainLSTMModel(ModelName):
             model.eval()
             val_loss = 0
             with torch.no_grad():
-                for xb, yb in val_loader:
-                    xb, yb = xb.to(device), yb.to(device)
+                for xb, yb, lb in val_loader:
+                    xb, yb, lb = xb.to(device), yb.to(device), lb.to(device)
                     yb_norm = normalize_targets(yb)
-                    out_norm = model(xb)
+                    out_norm = model(xb, lengths=lb)
                     val_loss += criterion(out_norm, yb_norm).item() * xb.size(0)
             val_loss /= len(val_loader.dataset)
             val_losses.append(val_loss)  # still normalized
@@ -233,16 +236,14 @@ def TrainLSTMModel(ModelName):
         model.eval()
         all_true, all_pred, all_lengths = [], [], []
         with torch.no_grad():
-            for xb, yb in test_loader:
-                xb, yb = xb.to(device), yb.to(device)
-                out_norm = model(xb)
+            for xb, yb, lb in test_loader:
+                xb, yb, lb = xb.to(device), yb.to(device), lb.to(device)
+                out_norm = model(xb, lengths=lb)
                 out_seconds = denormalize_targets(out_norm)
                 all_true.append(yb.cpu())
                 all_pred.append(out_seconds.cpu())
-                # Compute route lengths (number of non-padding steps per sequence)
-                token_mask = (xb.abs().sum(dim=-1) > 0).cpu()
-                lengths = token_mask.sum(dim=-1).numpy()
-                all_lengths.extend(lengths)
+                # Use actual lengths from dataset
+                all_lengths.extend(lb.cpu().numpy())
 
             all_true = torch.cat(all_true).numpy()
             all_pred = torch.cat(all_pred).numpy()
