@@ -5,6 +5,7 @@ import sys
 import json
 import logging
 from contextlib import asynccontextmanager
+import shutil
 
 # Setup logging for the python API
 logger = logging.getLogger("Python Controller")
@@ -108,6 +109,10 @@ def trainLSTMModel(ModelName: str):
 @app.post("/Python/TrainingFile")
 async def upload(file: UploadFile = File(...)):
     file_path = Path(__file__).parent.parent / "Service" / "Data" / "TrainingSet.json"
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    finally:
+        file.file.close()
+        
     return {"status": "ok", "file_saved": str(file_path)}

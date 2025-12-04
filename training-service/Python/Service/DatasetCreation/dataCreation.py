@@ -18,22 +18,40 @@ def random_sequence(graph, lengthOfSequence):
         if not node_data:                   #Check if the node exist.
             break
 
+        # 1. Try Outward Edges (Unvisited)
         edges = node_data.get("outward_edges", [])       #Finding all of the edges we can take from that node.
         nodes = node_data.get("outward_vertices", [])    #Finding all of the nodes that each edge go to.
 
-            
         available = []                      #Creating a list of available edges we can take.
         for e, v in zip(edges, nodes):      #Makes all the pairs (edge, node).
             if e not in visited_edges:      #Check if the edge is available (Not used in the route before).
                 available.append((e, v))    #If available append to the list.
             
-        if not available:   #If there is no availbe edges, stop it here.
-            break
-
-        chosen_edge, next_node = random.choice(available)   #Picks a random of all available edges.
-        sequence.append(chosen_edge)                        #Add the edge to the list.
-        visited_edges.add(chosen_edge)                      #Add the edge to visited List.
-        current_node = str(next_node)                       #Change the current node to the new noce.
+        if available:
+            chosen_edge, next_node = random.choice(available)   #Picks a random of all available edges.
+            sequence.append(chosen_edge)                        #Add the edge to the list.
+            visited_edges.add(chosen_edge)                      #Add the edge to visited List.
+            current_node = str(next_node)                       #Change the current node to the new noce.
+        else:
+            # 2. Backtracking (If no outward unvisited edges)
+            # We allow visited edges here to ensure we don't get stuck.
+            backward_edges = node_data.get("backward_edges", [])
+            backward_nodes = node_data.get("backward_vertices", [])
+            
+            available_backward = []
+            for e, v in zip(backward_edges, backward_nodes):
+                available_backward.append((e, v))
+            
+            if available_backward:
+                chosen_edge, next_node = random.choice(available_backward)
+                sequence.append(chosen_edge)
+                # We add to visited_edges so we don't immediately loop back if we treat it as a forward edge later,
+                # but since we don't filter visited for backward edges, we can still traverse it back.
+                visited_edges.add(chosen_edge)
+                current_node = str(next_node)
+            else:
+                # 3. Dead End (No outward or backward edges)
+                break
 
     return sequence #Return the sequence when we are done.
 

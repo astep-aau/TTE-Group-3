@@ -251,23 +251,30 @@ public class Service
     {
         _logger.LogInformation("[C# Service]: Uploading training set with {SequenceCount} sequences for model: {ModelName}",
             trainingSet.Sequences.Count, modelName);
-    
+
+        string tempFilePath = Path.GetTempFileName();
         try
         {
-            byte[] fileBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(trainingSet));
-            using var streamContent = new ByteArrayContent(fileBytes);
+            // Serialize to temp file to avoid OOM
+            using (var fs = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await JsonSerializer.SerializeAsync(fs, trainingSet);
+            }
+
+            using var fileStream = new FileStream(tempFilePath, FileMode.Open, FileAccess.Read);
+            using var streamContent = new StreamContent(fileStream);
             using var form = new MultipartFormDataContent();
             form.Add(streamContent, "file", "TrainingSet.json");
-    
+
             var url = $"{_pythonSettings.BaseUrl}{_pythonSettings.Endpoints.TrainingFile}";
             
             using var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromMinutes(10)); // Adjust based on expected upload duration
+            cts.CancelAfter(TimeSpan.FromMinutes(60)); // Increased timeout for large files
             HttpResponseMessage response = await _client.PostAsync(url, form, cts.Token);
             response.EnsureSuccessStatusCode();
-    
+
             _logger.LogInformation("[C# Service]: Successfully uploaded training set for model: {ModelName}", modelName);
-    
+
             await LstmTraining(modelName);
         }
         catch (OperationCanceledException ex)
@@ -284,6 +291,20 @@ public class Service
         {
             _logger.LogError(ex, "[C# Service]: Error uploading training set for model (not HTTP related): {ModelName}", modelName);
             throw;
+        }
+        finally
+        {
+            if (File.Exists(tempFilePath))
+            {
+                try
+                {
+                    File.Delete(tempFilePath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[C# Service]: Failed to delete temp file {TempFilePath}", tempFilePath);
+                }
+            }
         }
     }
 
