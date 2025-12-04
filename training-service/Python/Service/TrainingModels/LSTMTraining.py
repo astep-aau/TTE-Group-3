@@ -58,7 +58,12 @@ def TrainLSTMModel(ModelName):
 
         X, y = [], []
         for seq in data["Sequences"]:
-            X.append(seq["Edges"])
+            edges = seq["Edges"]
+            # Guard against zero-length sequences (pack_padded_sequence requires length >= 1)
+            if len(edges) == 0:
+                print(f"Warning: Skipping sequence with zero edges")
+                continue
+            X.append(edges)
             y.append(seq.get("TotalTime", 0))
 
         max_len = max(len(seq) for seq in X)
@@ -134,7 +139,8 @@ def TrainLSTMModel(ModelName):
             model.train()
             epoch_loss = 0
             for xb, yb, lb in train_loader:
-                xb, yb, lb = xb.to(device), yb.to(device), lb.to(device)
+                xb, yb = xb.to(device), yb.to(device)
+                # Keep lengths on CPU - pack_padded_sequence requires CPU tensor
                 yb_norm = normalize_targets(yb)
                 optimizer.zero_grad()
                 out = model(xb, lengths=lb)
@@ -151,7 +157,8 @@ def TrainLSTMModel(ModelName):
             val_loss = 0
             with torch.no_grad():
                 for xb, yb, lb in val_loader:
-                    xb, yb, lb = xb.to(device), yb.to(device), lb.to(device)
+                    xb, yb = xb.to(device), yb.to(device)
+                    # Keep lengths on CPU - pack_padded_sequence requires CPU tensor
                     yb_norm = normalize_targets(yb)
                     out_norm = model(xb, lengths=lb)
                     val_loss += criterion(out_norm, yb_norm).item() * xb.size(0)
@@ -237,13 +244,14 @@ def TrainLSTMModel(ModelName):
         all_true, all_pred, all_lengths = [], [], []
         with torch.no_grad():
             for xb, yb, lb in test_loader:
-                xb, yb, lb = xb.to(device), yb.to(device), lb.to(device)
+                xb, yb = xb.to(device), yb.to(device)
+                # Keep lengths on CPU - pack_padded_sequence requires CPU tensor
                 out_norm = model(xb, lengths=lb)
                 out_seconds = denormalize_targets(out_norm)
                 all_true.append(yb.cpu())
                 all_pred.append(out_seconds.cpu())
-                # Use actual lengths from dataset
-                all_lengths.extend(lb.cpu().numpy())
+                # Use actual lengths from dataset (already on CPU)
+                all_lengths.extend(lb.numpy())
 
             all_true = torch.cat(all_true).numpy()
             all_pred = torch.cat(all_pred).numpy()

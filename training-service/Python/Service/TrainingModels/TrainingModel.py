@@ -26,12 +26,14 @@ class LSTMModel(nn.Module):
         """
         Args:
             x: Padded input tensor [batch, max_seq_len, input_size]
-            lengths: Actual sequence lengths for each sample [batch]
+            lengths: Actual sequence lengths for each sample [batch].
+                     Must be a CPU tensor (pack_padded_sequence requirement).
                      If None, assumes no padding (uses last timestep).
         """
         if lengths is not None:
             # Pack the padded sequence to ignore padding in LSTM computation
-            lengths_cpu = lengths.cpu()  # pack_padded_sequence requires CPU lengths
+            # lengths should already be on CPU; ensure it defensively
+            lengths_cpu = lengths.cpu() if lengths.is_cuda else lengths
             packed = pack_padded_sequence(x, lengths_cpu, batch_first=True, enforce_sorted=False)
             packed_out, (h_n, c_n) = self.lstm(packed)
             # h_n[-1] contains the hidden state at the ACTUAL last timestep for each sequence
