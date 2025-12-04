@@ -133,8 +133,6 @@ app.UseSerilogRequestLogging(options =>
     };
 });
 
-app.UsePathBase(new PathString("/api"));
-
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 { 
