@@ -7,7 +7,7 @@ using translator_service.Features.CreateProcess;
 
 namespace translator_service.API;
 
-[Route("group3/api/processes")]
+[Route("api/processes")]
 [ApiController]
 
 public class CreateProcessEndpoint : ControllerBase
