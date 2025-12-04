@@ -73,10 +73,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: cs-25-sw-5-03.cs-astep02.srv.aau.dk
+    - host: cs-astep02.srv.aau.dk
       http:
         paths:
-          - path: /api
+          - path: /group3/api
             pathType: Prefix
             backend:
               service:
