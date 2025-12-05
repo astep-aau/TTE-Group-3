@@ -301,7 +301,7 @@ def TrainLSTMModel(ModelName):
         }
 
         GenerateFigure(
-            plot_infos=[plotInfoTrainingGraph, plotInfoMAEPerLength, plotInfoRouteLengthHist, plotInfoGapGraph],
+            plot_infos=[plotInfoTrainingGraph, plotInfoMAEPerLength, plotInfoRouteLengthHist],
             output_path=os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}_TrainingData.png")
         )
 
