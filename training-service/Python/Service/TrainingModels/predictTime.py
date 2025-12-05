@@ -1,6 +1,7 @@
 from pathlib import Path
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence
 
 
 class LSTMModelFromCheckpoint(nn.Module):
@@ -34,10 +35,23 @@ class LSTMModelFromCheckpoint(nn.Module):
         
         self.fc_layers = nn.Sequential(*layers)
 
-    def forward(self, x):
-        output_seq, _ = self.lstm(x)
-        out = output_seq[:, -1, :]  # Take last timestep output
-        return self.fc_layers(out)
+    def forward(self, x, lengths=None):
+        """
+        Args:
+            x: Input tensor [batch, seq_len, input_size]
+            lengths: Actual sequence lengths [batch]. If None, assumes no padding.
+        """
+        if lengths is not None:
+            # Pack sequence to handle padding correctly
+            lengths_cpu = lengths.cpu() if lengths.is_cuda else lengths
+            packed = pack_padded_sequence(x, lengths_cpu, batch_first=True, enforce_sorted=False)
+            packed_out, (h_n, c_n) = self.lstm(packed)
+            last_timestep = h_n[-1]
+        else:
+            # For inference on single unpadded sequences
+            output_seq, _ = self.lstm(x)
+            last_timestep = output_seq[:, -1, :]
+        return self.fc_layers(last_timestep)
 
 
 def load_model_from_checkpoint(checkpoint_path):

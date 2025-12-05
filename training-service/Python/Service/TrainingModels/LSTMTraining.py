@@ -58,19 +58,27 @@ def TrainLSTMModel(ModelName):
 
         X, y = [], []
         for seq in data["Sequences"]:
-            X.append(seq["Edges"])
+            edges = seq["Edges"]
+            # Guard against zero-length sequences (pack_padded_sequence requires length >= 1)
+            if len(edges) == 0:
+                print(f"Warning: Skipping sequence with zero edges")
+                continue
+            X.append(edges)
             y.append(seq.get("TotalTime", 0))
 
         max_len = max(len(seq) for seq in X)
         num_features = len(X[0][0])
         X_padded = np.zeros((len(X), max_len, num_features), dtype=np.float32)
+        lengths = []  # Track actual sequence lengths
         for i, seq in enumerate(X):
+            lengths.append(len(seq))
             for j, edge_vector in enumerate(seq):
                 X_padded[i, j, :] = edge_vector
 
         X = torch.tensor(X_padded)
         y = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
-        dataset = TensorDataset(X, y)
+        lengths = torch.tensor(lengths, dtype=torch.long)
+        dataset = TensorDataset(X, y, lengths)
 
         # Train/val/test split
         total_size = len(dataset)
@@ -86,7 +94,7 @@ def TrainLSTMModel(ModelName):
         # Normalization
         # We always compute mean/std for informational purposes, but whether they are applied
         # during training/inference is controlled by USE_TARGET_NORMALIZATION.
-        y_train = torch.stack([yb for _, yb in train_dataset])
+        y_train = torch.stack([yb for _, yb, _ in train_dataset])
         mean_y = y_train.mean()
         std_y = y_train.std()
 
@@ -130,11 +138,12 @@ def TrainLSTMModel(ModelName):
             # Training
             model.train()
             epoch_loss = 0
-            for xb, yb in train_loader:
+            for xb, yb, lb in train_loader:
                 xb, yb = xb.to(device), yb.to(device)
+                # Keep lengths on CPU - pack_padded_sequence requires CPU tensor
                 yb_norm = normalize_targets(yb)
                 optimizer.zero_grad()
-                out = model(xb)
+                out = model(xb, lengths=lb)
                 loss = criterion(out, yb_norm)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -147,10 +156,11 @@ def TrainLSTMModel(ModelName):
             model.eval()
             val_loss = 0
             with torch.no_grad():
-                for xb, yb in val_loader:
+                for xb, yb, lb in val_loader:
                     xb, yb = xb.to(device), yb.to(device)
+                    # Keep lengths on CPU - pack_padded_sequence requires CPU tensor
                     yb_norm = normalize_targets(yb)
-                    out_norm = model(xb)
+                    out_norm = model(xb, lengths=lb)
                     val_loss += criterion(out_norm, yb_norm).item() * xb.size(0)
             val_loss /= len(val_loader.dataset)
             val_losses.append(val_loss)  # still normalized
@@ -233,16 +243,15 @@ def TrainLSTMModel(ModelName):
         model.eval()
         all_true, all_pred, all_lengths = [], [], []
         with torch.no_grad():
-            for xb, yb in test_loader:
+            for xb, yb, lb in test_loader:
                 xb, yb = xb.to(device), yb.to(device)
-                out_norm = model(xb)
+                # Keep lengths on CPU - pack_padded_sequence requires CPU tensor
+                out_norm = model(xb, lengths=lb)
                 out_seconds = denormalize_targets(out_norm)
                 all_true.append(yb.cpu())
                 all_pred.append(out_seconds.cpu())
-                # Compute route lengths (number of non-padding steps per sequence)
-                token_mask = (xb.abs().sum(dim=-1) > 0).cpu()
-                lengths = token_mask.sum(dim=-1).numpy()
-                all_lengths.extend(lengths)
+                # Use actual lengths from dataset (already on CPU)
+                all_lengths.extend(lb.numpy())
 
             all_true = torch.cat(all_true).numpy()
             all_pred = torch.cat(all_pred).numpy()
@@ -292,7 +301,7 @@ def TrainLSTMModel(ModelName):
         }
 
         GenerateFigure(
-            plot_infos=[plotInfoTrainingGraph, plotInfoMAEPerLength, plotInfoRouteLengthHist, plotInfoGapGraph],
+            plot_infos=[plotInfoTrainingGraph, plotInfoMAEPerLength, plotInfoRouteLengthHist],
             output_path=os.path.join(output_dir / f"{ModelName}Model", f"{ModelName}_TrainingData.png")
         )
 
