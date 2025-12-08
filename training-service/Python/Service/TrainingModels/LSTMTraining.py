@@ -289,10 +289,11 @@ def TrainLSTMModel(ModelName):
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
         # Extract dropout value from model
-        dropout_value = [layer.p for layer in model.fc_layers if isinstance(layer, nn.Dropout)][0]
+        dropout_value = [layer.p for layer in model.fc_layers if isinstance(layer, nn.Dropout)][0] 
 
+        print(f"dropout_value: {dropout_value}")
         # Learning rate scheduler - reduces LR when validation loss plateaus
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
 
         # -----------------------------
         # Training loop
