@@ -21,8 +21,19 @@ class LSTMModel(nn.Module):
             nn.Linear(16, 1),
         )
 
-    def forward(self, x):
-        output_seq, _ = self.lstm(x)            # [batch, seq_len, hidden_size]
-        last_timestep = output_seq[:, -1, :]  
+    def forward(self, x, lengths):
+        # Pack the sequence to ignore padding
+        # enforce_sorted=False allows us to pass unsorted batches
+        packed_x = nn.utils.rnn.pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
+        
+        # LSTM returns packed output and (hidden_state, cell_state)
+        # hidden_state is (num_layers * num_directions, batch, hidden_size)
+        # We only need the last layer's hidden state
+        _, (hidden, _) = self.lstm(packed_x)
+        
+        # Extract the last layer's hidden state
+        # hidden[-1] corresponds to the last layer
+        last_timestep = hidden[-1]
+        
         out = self.fc_layers(last_timestep)
         return out
